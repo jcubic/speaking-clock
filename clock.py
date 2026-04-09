@@ -26,6 +26,14 @@ VOICES_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 TEMP_WAV = "/tmp/speaking_clock.wav"
 # ============================================
 
+VERBOSE = False
+
+
+def log(msg):
+    """Print a message only when --verbose is enabled."""
+    if VERBOSE:
+        print(msg)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -86,6 +94,13 @@ def parse_args():
         help="Speak the current time (with minutes) and exit",
     )
 
+    # Background / daemon
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show log messages (silent by default)",
+    )
+
     return parser.parse_args()
 
 
@@ -108,7 +123,7 @@ def load_language_data(lang):
     lang_file = os.path.join(LANG_DIR, f"{lang}.json")
     if not os.path.exists(lang_file):
         if lang != "en":
-            print(f"Warning: data/lang/{lang}.json not found, falling back to English.")
+            log(f"Warning: data/lang/{lang}.json not found, falling back to English.")
             lang_file = os.path.join(LANG_DIR, "en.json")
             lang = "en"
         else:
@@ -202,7 +217,7 @@ def get_voices_catalog():
             with open(cache_file, "r", encoding="utf-8") as f:
                 return json.load(f)
 
-    print("Fetching voice catalog from Hugging Face...")
+    log("Fetching voice catalog from Hugging Face...")
     try:
         req = urllib.request.Request(VOICES_JSON_URL)
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -212,7 +227,7 @@ def get_voices_catalog():
         return data
     except Exception as e:
         if os.path.exists(cache_file):
-            print(f"Warning: could not refresh catalog ({e}), using cached version.")
+            log(f"Warning: could not refresh catalog ({e}), using cached version.")
             with open(cache_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         print(f"Error: could not fetch voice catalog: {e}")
@@ -275,7 +290,7 @@ def download_voice(voice_key):
 
         url = f"{VOICES_BASE_URL}/{file_path}"
         size_mb = file_info.get("size_bytes", 0) / (1024 * 1024)
-        print(f"Downloading {filename} ({size_mb:.1f} MB)...")
+        log(f"Downloading {filename} ({size_mb:.1f} MB)...")
 
         try:
             urllib.request.urlretrieve(url, dest)
@@ -285,7 +300,7 @@ def download_voice(voice_key):
                 os.remove(dest)
             sys.exit(1)
 
-    print(f"Voice '{voice_key}' installed.")
+    log(f"Voice '{voice_key}' installed.")
 
 
 def find_voice_for_language(lang):
@@ -306,7 +321,7 @@ def resolve_voice(args, lang):
     if args.voice:
         onnx_path = os.path.join(VOICES_DIR, f"{args.voice}.onnx")
         if not os.path.exists(onnx_path):
-            print(f"Voice '{args.voice}' not found locally, downloading...")
+            log(f"Voice '{args.voice}' not found locally, downloading...")
             download_voice(args.voice)
         return onnx_path
 
@@ -335,7 +350,7 @@ def play_blank():
 
 
 def speak(voice, text):
-    print(f"Speaking: {text}")
+    log(f"Speaking: {text}")
     with wave.open(TEMP_WAV, "wb") as wav_file:
         voice.synthesize_wav(text, wav_file)
 
@@ -360,7 +375,9 @@ def is_in_range(hour, start, end):
 
 
 def main():
+    global VERBOSE
     args = parse_args()
+    VERBOSE = args.verbose
 
     # Resolve language
     lang = args.lang or detect_language()
@@ -422,7 +439,7 @@ def main():
     # Resolve and load voice
     voice_path = resolve_voice(args, lang)
     voice_name = os.path.basename(voice_path).replace(".onnx", "")
-    print(f"Loading voice: {voice_name}")
+    log(f"Loading voice: {voice_name}")
     voice = PiperVoice.load(voice_path)
 
     # --now mode: speak current time and exit
@@ -433,14 +450,14 @@ def main():
         return
 
     # Main clock loop
-    print(f"\nSpeaking clock started (lang={lang})")
+    log(f"\nSpeaking clock started (lang={lang})")
     if args.start != 0 or args.end != 23:
-        print(f"  Hour range: {args.start}:00 - {args.end}:00")
+        log(f"  Hour range: {args.start}:00 - {args.end}:00")
     if args.time:
-        print(f"  Simulated start time: {args.time}")
-    print(f"  Announces on the hour.\n")
+        log(f"  Simulated start time: {args.time}")
+    log(f"  Announces on the hour.\n")
     if not args.exit:
-        print("  (Ctrl+C to stop)")
+        log("  (Ctrl+C to stop)")
 
     while True:
         now = get_now()
@@ -450,7 +467,7 @@ def main():
                 text = get_spoken_time(lang_data, now.hour, 0)
                 speak(voice, text)
             else:
-                print(
+                log(
                     f"  {now.hour}:00 outside range"
                     f" ({args.start}-{args.end}), skipping."
                 )
@@ -461,7 +478,7 @@ def main():
             continue
 
         if args.exit:
-            print(f"  Time: {now.strftime('%H:%M:%S')} - not on the hour.")
+            log(f"  Time: {now.strftime('%H:%M:%S')} - not on the hour.")
             break
 
         seconds_to_next_hour = ((60 - now.minute - 1) * 60) + (60 - now.second)

@@ -126,6 +126,11 @@ def parse_args():
         action="store_true",
         help="Skip voice loading and audio playback (for testing)",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Alias for --nosound --verbose",
+    )
 
     return parser.parse_args()
 
@@ -627,6 +632,9 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
 def main():
     global VERBOSE, NOSOUND
     args = parse_args()
+    if args.debug:
+        args.verbose = True
+        args.nosound = True
     VERBOSE = args.verbose
     NOSOUND = args.nosound
 

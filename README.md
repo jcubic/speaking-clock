@@ -66,9 +66,10 @@ Voices are auto-downloaded from Hugging Face if not already installed.
 
 ```bash
 ./clock.py --start 7 --end 22
+./clock.py --start 7:30 --end 22:30
 ```
 
-Supports midnight wrap (e.g., `--start 22 --end 6`).
+Accepts `H`, `HH`, `H:MM`, or `HH:MM`. Supports midnight wrap (e.g., `--start 22 --end 6`).
 
 ### Announce every 30 minutes
 
@@ -106,7 +107,7 @@ Stop the background daemon:
 
 ```
 usage: clock.py [-h] [--lang LANG] [--voice NAME] [--list-voices]
-                [--start HOUR] [--end HOUR] [--freq MIN] [--time HH:MM]
+                [--start HH:MM] [--end HH:MM] [--freq MIN] [--time HH:MM]
                 [--exit] [--now] [--background] [--stop] [--verbose]
 
 Speaking clock — announces the time using text-to-speech
@@ -115,8 +116,8 @@ options:
   --lang LANG    Language code, e.g. pl, en (default: from system locale)
   --voice NAME   Voice name, e.g. en_US-lessac-medium (auto-downloads if missing)
   --list-voices  List available Piper voices for the current language and exit
-  --start HOUR   Start hour for speaking range (0-23, default: 0)
-  --end HOUR     End hour for speaking range (0-23, default: 23)
+  --start HH:MM  Start time for speaking range (default: 0:00)
+  --end HH:MM    End time for speaking range (default: 23:59)
   --freq MIN     Announcement interval in minutes (default: 60)
   --time HH:MM   Set simulated start time for debugging (e.g., 16:00)
   --exit         Run once and exit (for debugging)

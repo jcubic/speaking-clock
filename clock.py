@@ -67,17 +67,17 @@ def parse_args():
     # Time range
     parser.add_argument(
         "--start",
-        type=int,
-        default=0,
-        metavar="HOUR",
-        help="Start hour for speaking range (0-23, default: 0)",
+        type=str,
+        default="0:00",
+        metavar="HH:MM",
+        help="Start time for speaking range (default: 0:00)",
     )
     parser.add_argument(
         "--end",
-        type=int,
-        default=23,
-        metavar="HOUR",
-        help="End hour for speaking range (0-23, default: 23)",
+        type=str,
+        default="23:59",
+        metavar="HH:MM",
+        help="End time for speaking range (default: 23:59)",
     )
     parser.add_argument(
         "--freq",
@@ -454,15 +454,42 @@ def is_daemon_running():
 # ==================== MAIN ====================
 
 
-def is_in_range(hour, start, end):
-    """Check if hour is within range (handles midnight wrap)."""
-    if start <= end:
-        return start <= hour <= end
+def parse_time_range(value, name):
+    """Parse a --start/--end value into (hour, minute).
+
+    Accepts 'H', 'HH', 'H:MM', or 'HH:MM'.
+    """
+    try:
+        if ":" in value:
+            h, m = map(int, value.split(":"))
+        else:
+            h = int(value)
+            m = 0
+        if not (0 <= h <= 23 and 0 <= m <= 59):
+            raise ValueError
+        return h, m
+    except ValueError:
+        print(
+            f"Error: {name} must be H, HH, H:MM, or HH:MM (e.g., 7, 07:30), got '{value}'"
+        )
+        sys.exit(1)
+
+
+def time_to_minutes(hour, minute):
+    """Convert hour:minute to total minutes since midnight (0-1439)."""
+    return hour * 60 + minute
+
+
+def is_in_range(hour, minute, start_minutes, end_minutes):
+    """Check if hour:minute is within range (handles midnight wrap)."""
+    t = time_to_minutes(hour, minute)
+    if start_minutes <= end_minutes:
+        return start_minutes <= t <= end_minutes
     else:
-        return hour >= start or hour <= end
+        return t >= start_minutes or t <= end_minutes
 
 
-def run_clock(args, lang, lang_data, time_offset):
+def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
     """Main clock loop. Runs in foreground or as daemon action."""
 
     def get_now():
@@ -483,9 +510,10 @@ def run_clock(args, lang, lang_data, time_offset):
 
     # Main clock loop
     freq = args.freq
+    range_str = f"{start_minutes // 60}:{start_minutes % 60:02d}-{end_minutes // 60}:{end_minutes % 60:02d}"
     log(f"\nSpeaking clock started (lang={lang})")
-    if args.start != 0 or args.end != 23:
-        log(f"  Hour range: {args.start}:00 - {args.end}:00")
+    if start_minutes != 0 or end_minutes != 23 * 60 + 59:
+        log(f"  Time range: {range_str}")
     if freq != 60:
         log(f"  Announcement interval: every {freq} minutes")
     if args.time:
@@ -527,13 +555,13 @@ def run_clock(args, lang, lang_data, time_offset):
 
         # Check if we're at an announcement slot right now (within 5s grace)
         if now.minute % freq == 0 and frac_sec < 5:
-            if is_in_range(now.hour, args.start, args.end):
+            if is_in_range(now.hour, now.minute, start_minutes, end_minutes):
                 text = get_spoken_time(lang_data, now.hour, now.minute)
                 speak(voice, text)
             else:
                 log(
                     f"  {now.hour}:{now.minute:02d} outside range"
-                    f" ({args.start}-{args.end}), skipping."
+                    f" ({range_str}), skipping."
                 )
 
             if args.exit:
@@ -553,10 +581,10 @@ def run_clock(args, lang, lang_data, time_offset):
         sleep_time = max(0, seconds_to_target - ANNOUNCE_OFFSET)
         time.sleep(sleep_time)
 
-        if not is_in_range(target_hour, args.start, args.end):
+        if not is_in_range(target_hour, target_minute, start_minutes, end_minutes):
             log(
                 f"  {target_hour}:{target_minute:02d} outside range"
-                f" ({args.start}-{args.end}), skipping."
+                f" ({range_str}), skipping."
             )
             if args.exit:
                 break
@@ -622,13 +650,11 @@ def main():
     # Load language data
     lang_data, lang = load_language_data(lang)
 
-    # Validate hour range
-    if not (0 <= args.start <= 23):
-        print(f"Error: --start must be 0-23, got {args.start}")
-        return
-    if not (0 <= args.end <= 23):
-        print(f"Error: --end must be 0-23, got {args.end}")
-        return
+    # Parse and validate time range
+    start_h, start_m = parse_time_range(args.start, "--start")
+    end_h, end_m = parse_time_range(args.end, "--end")
+    start_minutes = time_to_minutes(start_h, start_m)
+    end_minutes = time_to_minutes(end_h, end_m)
 
     # Validate frequency
     if args.freq < 1 or args.freq > 60:
@@ -673,7 +699,9 @@ def main():
         daemon = Daemonize(
             app="speaking-clock",
             pid=PID_FILE,
-            action=lambda: run_clock(args, lang, lang_data, time_offset),
+            action=lambda: run_clock(
+                args, lang, lang_data, time_offset, start_minutes, end_minutes
+            ),
             chdir=SCRIPT_DIR,
         )
         log(f"Starting clock in the background...")
@@ -681,7 +709,7 @@ def main():
         return
 
     # Foreground mode
-    run_clock(args, lang, lang_data, time_offset)
+    run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes)
 
 
 if __name__ == "__main__":

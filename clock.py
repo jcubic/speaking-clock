@@ -30,6 +30,7 @@ PID_FILE = os.path.join(CACHE_DIR, "clock.pid")
 # ============================================
 
 VERBOSE = False
+NOSOUND = False
 
 
 def log(msg):
@@ -119,6 +120,11 @@ def parse_args():
         "--verbose",
         action="store_true",
         help="Show log messages (silent by default)",
+    )
+    parser.add_argument(
+        "--nosound",
+        action="store_true",
+        help="Skip voice loading and audio playback (for testing)",
     )
 
     return parser.parse_args()
@@ -361,6 +367,8 @@ def resolve_voice(args, lang):
 
 def play_blank():
     """Play blank MP3 to wake up Bluetooth audio (avoids clipping the start)."""
+    if NOSOUND:
+        return
     if os.path.exists(BLANK_MP3):
         subprocess.run(
             ["mpg123", "-q", BLANK_MP3],
@@ -375,6 +383,8 @@ def prepare_speech(voice, text):
     Returns when the system is ready to play the speech immediately.
     """
     log(f"Preparing: {text}")
+    if NOSOUND:
+        return
     with wave.open(TEMP_WAV, "wb") as wav_file:
         voice.synthesize_wav(text, wav_file)
     play_blank()
@@ -383,6 +393,8 @@ def prepare_speech(voice, text):
 def play_speech():
     """Play the previously prepared speech WAV."""
     log("Playing speech")
+    if NOSOUND:
+        return
     subprocess.run(
         ["aplay", TEMP_WAV], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
@@ -496,10 +508,13 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
         return datetime.datetime.now() + time_offset
 
     # Load voice (intentionally here — after daemon fork to avoid threading issues)
-    voice_path = resolve_voice(args, lang)
-    voice_name = os.path.basename(voice_path).replace(".onnx", "")
-    log(f"Loading voice: {voice_name}")
-    voice = PiperVoice.load(voice_path)
+    if NOSOUND:
+        voice = None
+    else:
+        voice_path = resolve_voice(args, lang)
+        voice_name = os.path.basename(voice_path).replace(".onnx", "")
+        log(f"Loading voice: {voice_name}")
+        voice = PiperVoice.load(voice_path)
 
     # --now mode: speak current time and exit
     if args.now:
@@ -610,9 +625,10 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
 
 
 def main():
-    global VERBOSE
+    global VERBOSE, NOSOUND
     args = parse_args()
     VERBOSE = args.verbose
+    NOSOUND = args.nosound
 
     # --stop mode: kill background daemon and exit
     if args.stop:
@@ -691,9 +707,10 @@ def main():
             return
 
         # Validate voice exists before forking (so errors are visible)
-        voice_path = resolve_voice(args, lang)
-        if not os.path.exists(voice_path):
-            return
+        if not NOSOUND:
+            voice_path = resolve_voice(args, lang)
+            if not os.path.exists(voice_path):
+                return
 
         ensure_cache_dir()
         daemon = Daemonize(

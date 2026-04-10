@@ -79,6 +79,13 @@ def parse_args():
         metavar="HOUR",
         help="End hour for speaking range (0-23, default: 23)",
     )
+    parser.add_argument(
+        "--freq",
+        type=int,
+        default=60,
+        metavar="MIN",
+        help="Announcement interval in minutes (default: 60)",
+    )
 
     # Debug
     parser.add_argument(
@@ -475,77 +482,103 @@ def run_clock(args, lang, lang_data, time_offset):
         return
 
     # Main clock loop
+    freq = args.freq
     log(f"\nSpeaking clock started (lang={lang})")
     if args.start != 0 or args.end != 23:
         log(f"  Hour range: {args.start}:00 - {args.end}:00")
+    if freq != 60:
+        log(f"  Announcement interval: every {freq} minutes")
     if args.time:
         log(f"  Simulated start time: {args.time}")
-    log(f"  Announces on the hour.\n")
+    log(f"  Announces every {freq} min on aligned boundaries.\n")
     if not args.exit:
         log("  (Ctrl+C to stop)")
 
-    # Warm-up offset: how many seconds before the hour to start
+    # Warm-up offset: how many seconds before the announcement to start
     # synthesizing + playing blank MP3 so speech starts on the dot.
     # Measured: synthesis ~0.05s + blank MP3 ~2.2s = ~2.3s total.
     # Use 3s to leave margin for system jitter.
     ANNOUNCE_OFFSET = 3
 
+    def next_announcement(now):
+        """Return (target_datetime, hour, minute) for the next aligned slot."""
+        current_min = now.hour * 60 + now.minute
+        frac = now.second + now.microsecond / 1_000_000
+        # If we're past the 5s grace window, this slot already fired
+        if frac >= 5:
+            current_min += 1
+        # Find next minute that's a multiple of freq
+        slot = current_min + (freq - current_min % freq) % freq
+        if current_min % freq == 0 and frac < 5:
+            slot = current_min  # we're at an active slot right now
+        target_hour = (slot // 60) % 24
+        target_minute = slot % 60
+        # Build target datetime (today or tomorrow)
+        target = now.replace(
+            hour=target_hour, minute=target_minute, second=0, microsecond=0
+        )
+        if target <= now:
+            target += datetime.timedelta(days=1)
+        return target, target_hour, target_minute
+
     while True:
         now = get_now()
+        frac_sec = now.second + now.microsecond / 1_000_000
 
-        if now.minute == 0 and now.second < 5:
+        # Check if we're at an announcement slot right now (within 5s grace)
+        if now.minute % freq == 0 and frac_sec < 5:
             if is_in_range(now.hour, args.start, args.end):
-                text = get_spoken_time(lang_data, now.hour, 0)
+                text = get_spoken_time(lang_data, now.hour, now.minute)
                 speak(voice, text)
             else:
                 log(
-                    f"  {now.hour}:00 outside range"
+                    f"  {now.hour}:{now.minute:02d} outside range"
                     f" ({args.start}-{args.end}), skipping."
                 )
 
             if args.exit:
                 break
-            time.sleep(65)
+            time.sleep(freq * 60 + 5)
             continue
 
         if args.exit:
-            log(f"  Time: {now.strftime('%H:%M:%S')} - not on the hour.")
+            log(f"  Time: {now.strftime('%H:%M:%S')} - not at announcement slot.")
             break
 
-        # Sleep until ANNOUNCE_OFFSET seconds before the next hour
-        frac_sec = now.second + now.microsecond / 1_000_000
-        seconds_to_next_hour = ((60 - now.minute - 1) * 60) + (60 - frac_sec)
-        sleep_time = max(0, seconds_to_next_hour - ANNOUNCE_OFFSET)
+        # Find the next announcement slot
+        target, target_hour, target_minute = next_announcement(now)
+        seconds_to_target = (target - now).total_seconds()
+
+        # Sleep until ANNOUNCE_OFFSET seconds before the target
+        sleep_time = max(0, seconds_to_target - ANNOUNCE_OFFSET)
         time.sleep(sleep_time)
 
-        # Determine the upcoming hour
-        next_hour = (now.hour + 1) % 24
-
-        if not is_in_range(next_hour, args.start, args.end):
-            log(f"  {next_hour}:00 outside range ({args.start}-{args.end}), skipping.")
+        if not is_in_range(target_hour, args.start, args.end):
+            log(
+                f"  {target_hour}:{target_minute:02d} outside range"
+                f" ({args.start}-{args.end}), skipping."
+            )
             if args.exit:
                 break
             time.sleep(ANNOUNCE_OFFSET + 5)
             continue
 
-        # Prepare speech (synthesize + blank MP3) while still before the hour
-        text = get_spoken_time(lang_data, next_hour, 0)
+        # Prepare speech (synthesize + blank MP3) while still before the target
+        text = get_spoken_time(lang_data, target_hour, target_minute)
         prepare_speech(voice, text)
 
-        # Wait for the exact hour boundary
+        # Wait for the exact target boundary
         now = get_now()
-        if now.minute != 0:
-            frac = now.second + now.microsecond / 1_000_000
-            remaining = (60 - frac) + (59 - now.minute) * 60
-            if remaining > 0:
-                time.sleep(remaining)
+        remaining = (target - now).total_seconds()
+        if remaining > 0:
+            time.sleep(remaining)
 
-        # Play the speech right at the hour
+        # Play the speech right at the slot
         play_speech()
 
         if args.exit:
             break
-        time.sleep(65)
+        time.sleep(freq * 60 + 5)
 
 
 def main():
@@ -595,6 +628,17 @@ def main():
         return
     if not (0 <= args.end <= 23):
         print(f"Error: --end must be 0-23, got {args.end}")
+        return
+
+    # Validate frequency
+    if args.freq < 1 or args.freq > 60:
+        print(f"Error: --freq must be 1-60, got {args.freq}")
+        return
+    if 60 % args.freq != 0:
+        print(
+            f"Error: --freq must divide 60 evenly"
+            f" (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60), got {args.freq}"
+        )
         return
 
     # Compute time offset for --time option

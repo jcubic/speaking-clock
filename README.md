@@ -9,6 +9,7 @@ A multi-language speaking clock that announces the time using [Piper](https://gi
 - **Voice management** -- browse, download, and auto-detect Piper voices from Hugging Face
 - **Bluetooth audio fix** -- plays a silent MP3 before speech to prevent clipping on Bluetooth speakers
 - **Flexible scheduling** -- restrict announcements to a time range (e.g., 7:00--22:00)
+- **Configurable interval** -- announce every N minutes with `--freq` (e.g., every 30 min)
 - **Background mode** -- run as a daemon with `--background`, stop with `--stop`
 - **Simulated time** -- debug with `--time HH:MM` to set a fake starting time
 - **Silent by default** -- no terminal output unless `--verbose` is passed
@@ -69,6 +70,14 @@ Voices are auto-downloaded from Hugging Face if not already installed.
 
 Supports midnight wrap (e.g., `--start 22 --end 6`).
 
+### Announce every 30 minutes
+
+```bash
+./clock.py --freq 30
+```
+
+Valid values for `--freq` must divide 60 evenly: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60.
+
 ### Debug with simulated time
 
 ```bash
@@ -97,8 +106,8 @@ Stop the background daemon:
 
 ```
 usage: clock.py [-h] [--lang LANG] [--voice NAME] [--list-voices]
-                [--start HOUR] [--end HOUR] [--time HH:MM] [--exit] [--now]
-                [--background] [--stop] [--verbose]
+                [--start HOUR] [--end HOUR] [--freq MIN] [--time HH:MM]
+                [--exit] [--now] [--background] [--stop] [--verbose]
 
 Speaking clock — announces the time using text-to-speech
 
@@ -108,6 +117,7 @@ options:
   --list-voices  List available Piper voices for the current language and exit
   --start HOUR   Start hour for speaking range (0-23, default: 0)
   --end HOUR     End hour for speaking range (0-23, default: 23)
+  --freq MIN     Announcement interval in minutes (default: 60)
   --time HH:MM   Set simulated start time for debugging (e.g., 16:00)
   --exit         Run once and exit (for debugging)
   --now          Speak the current time (with minutes) and exit

@@ -544,6 +544,9 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
         log(f"Loading voice: {voice_name}")
         voice = PiperVoice.load(voice_path)
 
+    freq = args.freq
+    range_str = f"{start_minutes // 60}:{start_minutes % 60:02d}-{end_minutes // 60}:{end_minutes % 60:02d}"
+
     # --now mode: speak current time and exit
     if args.now:
         now = get_now()
@@ -551,52 +554,41 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
         speak(voice, text)
         return
 
-    # Main clock loop
-    freq = args.freq
-    range_str = f"{start_minutes // 60}:{start_minutes % 60:02d}-{end_minutes // 60}:{end_minutes % 60:02d}"
-    log(f"\nSpeaking clock started (lang={lang})")
-    if start_minutes != 0 or end_minutes != 23 * 60 + 59:
-        log(f"  Time range: {range_str}")
-    if freq != 60:
-        log(f"  Announcement interval: every {freq} minutes")
-    if args.time:
-        log(f"  Simulated start time: {args.time}")
-    log(f"  Announces every {freq} min on aligned boundaries.\n")
-    if not args.exit:
-        log("  (Ctrl+C to stop)")
-
-    # Warm-up offset: how many seconds before the announcement to start
-    # synthesizing + playing blank MP3 so speech starts on the dot.
+    # Warm-up offset: start synthesizing + playing blank MP3 this many
+    # seconds before the target so speech starts on the dot.
     # Measured: synthesis ~0.05s + blank MP3 ~2.2s = ~2.3s total.
     # Use 3s to leave margin for system jitter.
     ANNOUNCE_OFFSET = 3
 
     def next_announcement(now):
-        """Return (target_datetime, hour, minute) for the next aligned slot."""
+        """Return (target_datetime, hour, minute) for the upcoming slot.
+
+        Within the 5-second grace window after a slot boundary, the
+        just-passed slot is returned so a slightly late tick can still
+        fire it.
+        """
         current_min = now.hour * 60 + now.minute
         frac = now.second + now.microsecond / 1_000_000
-        # If we're past the 5s grace window, this slot already fired
         if frac >= 5:
             current_min += 1
-        # Find next minute that's a multiple of freq
         slot = current_min + (freq - current_min % freq) % freq
         if current_min % freq == 0 and frac < 5:
-            slot = current_min  # we're at an active slot right now
+            slot = current_min
         target_hour = (slot // 60) % 24
         target_minute = slot % 60
-        # Build target datetime (today or tomorrow)
         target = now.replace(
             hour=target_hour, minute=target_minute, second=0, microsecond=0
         )
-        if target <= now:
+        # Wrap to tomorrow only if the target is meaningfully past
+        # (outside the 5s grace window).
+        if target < now - datetime.timedelta(seconds=5):
             target += datetime.timedelta(days=1)
         return target, target_hour, target_minute
 
-    while True:
+    # --exit mode: fire once if we're at a slot right now, then exit
+    if args.exit:
         now = get_now()
         frac_sec = now.second + now.microsecond / 1_000_000
-
-        # Check if we're at an announcement slot right now (within 5s grace)
         if now.minute % freq == 0 and frac_sec < 5:
             if is_in_range(now.hour, now.minute, start_minutes, end_minutes):
                 text = get_spoken_time(lang_data, now.hour, now.minute)
@@ -606,50 +598,55 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
                     f"  {now.hour}:{now.minute:02d} outside range"
                     f" ({range_str}), skipping."
                 )
-
-            if args.exit:
-                break
-            time.sleep(freq * 60 + 5)
-            continue
-
-        if args.exit:
+        else:
             log(f"  Time: {now.strftime('%H:%M:%S')} - not at announcement slot.")
-            break
+        return
 
-        # Find the next announcement slot
+    # Main polling loop
+    log(f"\nSpeaking clock started (lang={lang})")
+    if start_minutes != 0 or end_minutes != 23 * 60 + 59:
+        log(f"  Time range: {range_str}")
+    if freq != 60:
+        log(f"  Announcement interval: every {freq} minutes")
+    if args.time:
+        log(f"  Simulated start time: {args.time}")
+    log(f"  Announces every {freq} min on aligned boundaries.\n")
+    log("  (Ctrl+C to stop)")
+
+    # Tick interval. Must be strictly less than ANNOUNCE_OFFSET so every
+    # target's warm-up window is guaranteed to catch at least one tick,
+    # even under moderate scheduling jitter.
+    TICK = 1.0
+
+    last_announced = None
+
+    while True:
+        now = get_now()
         target, target_hour, target_minute = next_announcement(now)
         seconds_to_target = (target - now).total_seconds()
 
-        # Sleep until ANNOUNCE_OFFSET seconds before the target
-        sleep_time = max(0, seconds_to_target - ANNOUNCE_OFFSET)
-        time.sleep(sleep_time)
+        # Fire when we're within the warm-up window (up to ANNOUNCE_OFFSET
+        # seconds before target) or within the 5s grace window after (to
+        # recover from tick jitter, startup, or a stalled tick).
+        in_window = -5 <= seconds_to_target <= ANNOUNCE_OFFSET + 0.5
 
-        if not is_in_range(target_hour, target_minute, start_minutes, end_minutes):
-            log(
-                f"  {target_hour}:{target_minute:02d} outside range"
-                f" ({range_str}), skipping."
-            )
-            if args.exit:
-                break
-            time.sleep(ANNOUNCE_OFFSET + 5)
+        if in_window and target != last_announced:
+            last_announced = target
+            if is_in_range(target_hour, target_minute, start_minutes, end_minutes):
+                text = get_spoken_time(lang_data, target_hour, target_minute)
+                prepare_speech(voice, text)
+                remaining = (target - get_now()).total_seconds()
+                if remaining > 0:
+                    time.sleep(remaining)
+                play_speech()
+            else:
+                log(
+                    f"  {target_hour}:{target_minute:02d} outside range"
+                    f" ({range_str}), skipping."
+                )
             continue
 
-        # Prepare speech (synthesize + blank MP3) while still before the target
-        text = get_spoken_time(lang_data, target_hour, target_minute)
-        prepare_speech(voice, text)
-
-        # Wait for the exact target boundary
-        now = get_now()
-        remaining = (target - now).total_seconds()
-        if remaining > 0:
-            time.sleep(remaining)
-
-        # Play the speech right at the slot
-        play_speech()
-
-        if args.exit:
-            break
-        time.sleep(freq * 60 + 5)
+        time.sleep(TICK)
 
 
 def main():

@@ -24,6 +24,7 @@ LANG_DIR = os.path.join(DATA_DIR, "lang")
 VOICES_DIR = os.path.join(DATA_DIR, "voices")
 CACHE_DIR = os.path.join(SCRIPT_DIR, ".cache")
 BLANK_MP3 = os.path.join(DATA_DIR, "blank.mp3")
+BEEP_MP3 = os.path.join(DATA_DIR, "beep.mp3")
 VOICES_JSON_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/voices.json"
 VOICES_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 TEMP_WAV = "/tmp/speaking_clock.wav"
@@ -404,6 +405,27 @@ def play_blank():
         )
 
 
+def play_beep():
+    """Play the beep MP3 once."""
+    if NOSOUND:
+        return
+    if os.path.exists(BEEP_MP3):
+        subprocess.run(
+            ["mpg123", "-q", BEEP_MP3],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+
+def beep_count_for_minute(minute):
+    """Return number of beeps to play: 2 on the hour, 1 on the half hour."""
+    if minute == 0:
+        return 2
+    if minute == 30:
+        return 1
+    return 0
+
+
 def prepare_speech(voice, text):
     """Synthesize WAV and play blank MP3 to warm up Bluetooth audio.
 
@@ -430,9 +452,11 @@ def play_speech():
         os.remove(TEMP_WAV)
 
 
-def speak(voice, text):
-    """Synthesize and play speech (no timing control — used by --now)."""
+def speak(voice, text, beep_count=0):
+    """Synthesize and play speech (no timing control — used by --now/--exit)."""
     prepare_speech(voice, text)
+    for _ in range(beep_count):
+        play_beep()
     play_speech()
 
 
@@ -551,7 +575,7 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
     if args.now:
         now = get_now()
         text = get_spoken_time(lang_data, now.hour, now.minute)
-        speak(voice, text)
+        speak(voice, text, beep_count=beep_count_for_minute(now.minute))
         return
 
     # Warm-up offset: start synthesizing + playing blank MP3 this many
@@ -592,7 +616,7 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
         if now.minute % freq == 0 and frac_sec < 5:
             if is_in_range(now.hour, now.minute, start_minutes, end_minutes):
                 text = get_spoken_time(lang_data, now.hour, now.minute)
-                speak(voice, text)
+                speak(voice, text, beep_count=beep_count_for_minute(now.minute))
             else:
                 log(
                     f"  {now.hour}:{now.minute:02d} outside range"
@@ -638,6 +662,8 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
                 remaining = (target - get_now()).total_seconds()
                 if remaining > 0:
                     time.sleep(remaining)
+                for _ in range(beep_count_for_minute(target_minute)):
+                    play_beep()
                 play_speech()
             else:
                 log(

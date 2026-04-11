@@ -10,6 +10,7 @@ import signal
 import subprocess
 import sys
 import time
+import traceback
 import urllib.request
 import wave
 
@@ -27,6 +28,7 @@ VOICES_JSON_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/voic
 VOICES_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 TEMP_WAV = "/tmp/speaking_clock.wav"
 PID_FILE = os.path.join(CACHE_DIR, "clock.pid")
+CLOCK_LOG = os.path.expanduser("~/.clock.log")
 # ============================================
 
 VERBOSE = False
@@ -37,6 +39,26 @@ def log(msg):
     """Print a message only when --verbose is enabled."""
     if VERBOSE:
         print(msg)
+
+
+def log_to_file(message):
+    """Append a timestamped message to ~/.clock.log."""
+    try:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(CLOCK_LOG, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {message}\n")
+    except OSError:
+        pass
+
+
+def log_spoken(text):
+    """Append a spoken-words entry to ~/.clock.log."""
+    log_to_file(text)
+
+
+def log_error():
+    """Append the current exception traceback to ~/.clock.log."""
+    log_to_file(traceback.format_exc().rstrip())
 
 
 def parse_args():
@@ -390,6 +412,7 @@ def prepare_speech(voice, text):
     log(f"Preparing: {text}")
     if NOSOUND:
         return
+    log_spoken(text)
     with wave.open(TEMP_WAV, "wb") as wav_file:
         voice.synthesize_wav(text, wav_file)
     play_blank()
@@ -721,12 +744,20 @@ def main():
                 return
 
         ensure_cache_dir()
+
+        def daemon_action():
+            try:
+                run_clock(
+                    args, lang, lang_data, time_offset, start_minutes, end_minutes
+                )
+            except Exception:
+                log_error()
+                raise
+
         daemon = Daemonize(
             app="speaking-clock",
             pid=PID_FILE,
-            action=lambda: run_clock(
-                args, lang, lang_data, time_offset, start_minutes, end_minutes
-            ),
+            action=daemon_action,
             chdir=SCRIPT_DIR,
         )
         log(f"Starting clock in the background...")
@@ -742,3 +773,6 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         pass
+    except Exception:
+        log_error()
+        raise

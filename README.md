@@ -98,6 +98,15 @@ Stop the background daemon:
 ./clock.py --stop
 ```
 
+### Set volume
+
+```bash
+./clock.py --volume 50          # 50% volume
+./clock.py --volume 0           # silent, same as --nosound
+```
+
+`--nosound` is equivalent to `--volume 0` -- both skip voice loading and audio playback entirely.
+
 ### Enable log output
 
 ```bash
@@ -110,6 +119,7 @@ Stop the background daemon:
 usage: clock.py [-h] [--lang LANG] [--voice NAME] [--list-voices]
                 [--start HH:MM] [--end HH:MM] [--freq MIN] [--time HH:MM]
                 [--exit] [--now] [--background] [--stop] [--verbose]
+                [--volume PCT] [--nosound] [--debug]
 
 Speaking clock — announces the time using text-to-speech
 
@@ -126,6 +136,9 @@ options:
   --background   Run as a background daemon
   --stop         Stop the background daemon and exit
   --verbose      Show log messages (silent by default)
+  --volume PCT   Volume level 0-100 percent (default: 100, 0 = no sound)
+  --nosound      Same as --volume 0 — skip voice loading and audio playback
+  --debug        Alias for --nosound --verbose
 ```
 
 ## Adding a new language

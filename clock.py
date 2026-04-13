@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import array
 import datetime
 import glob
 import json
@@ -34,6 +35,7 @@ CLOCK_LOG = os.path.expanduser("~/.clock.log")
 
 VERBOSE = False
 NOSOUND = False
+VOLUME = 100
 
 
 def log(msg):
@@ -145,9 +147,16 @@ def parse_args():
         help="Show log messages (silent by default)",
     )
     parser.add_argument(
+        "--volume",
+        type=int,
+        default=100,
+        metavar="PCT",
+        help="Volume level 0-100 percent (default: 100, 0 = no sound)",
+    )
+    parser.add_argument(
         "--nosound",
         action="store_true",
-        help="Skip voice loading and audio playback (for testing)",
+        help="Same as --volume 0 — skip voice loading and audio playback",
     )
     parser.add_argument(
         "--debug",
@@ -406,15 +415,15 @@ def play_blank():
 
 
 def play_beep():
-    """Play the beep MP3 once."""
+    """Play the beep MP3 once, respecting VOLUME."""
     if NOSOUND:
         return
     if os.path.exists(BEEP_MP3):
-        subprocess.run(
-            ["mpg123", "-q", BEEP_MP3],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        cmd = ["mpg123", "-q"]
+        if VOLUME < 100:
+            cmd += ["-f", str(int(VOLUME * 32768 / 100))]
+        cmd.append(BEEP_MP3)
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def beep_count_for_minute(minute):
@@ -424,6 +433,22 @@ def beep_count_for_minute(minute):
     if minute == 30:
         return 1
     return 0
+
+
+def scale_wav_volume(path):
+    """Scale WAV sample amplitudes to match VOLUME (1-100)."""
+    if VOLUME >= 100:
+        return
+    scale = VOLUME / 100.0
+    with wave.open(path, "rb") as r:
+        params = r.getparams()
+        frames = r.readframes(r.getnframes())
+    samples = array.array("h", frames)
+    for i in range(len(samples)):
+        samples[i] = max(-32768, min(32767, int(samples[i] * scale)))
+    with wave.open(path, "wb") as w:
+        w.setparams(params)
+        w.writeframes(samples.tobytes())
 
 
 def prepare_speech(voice, text):
@@ -437,6 +462,7 @@ def prepare_speech(voice, text):
     log_spoken(text)
     with wave.open(TEMP_WAV, "wb") as wav_file:
         voice.synthesize_wav(text, wav_file)
+    scale_wav_volume(TEMP_WAV)
     play_blank()
 
 
@@ -676,13 +702,19 @@ def run_clock(args, lang, lang_data, time_offset, start_minutes, end_minutes):
 
 
 def main():
-    global VERBOSE, NOSOUND
+    global VERBOSE, NOSOUND, VOLUME
     args = parse_args()
     if args.debug:
         args.verbose = True
         args.nosound = True
     VERBOSE = args.verbose
-    NOSOUND = args.nosound
+    if not 0 <= args.volume <= 100:
+        print(f"Error: --volume must be 0-100, got {args.volume}")
+        sys.exit(1)
+    VOLUME = args.volume
+    if args.nosound:
+        VOLUME = 0
+    NOSOUND = args.nosound or VOLUME == 0
 
     # --stop mode: kill background daemon and exit
     if args.stop:

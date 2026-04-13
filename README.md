@@ -44,10 +44,10 @@ This installs the `vox` command.
 ```bash
 git clone https://github.com/jcubic/horavox.git
 cd horavox
-pip install -r requirements.txt
+pip install .
 ```
 
-When running from source, use `./horavox.py` instead of `vox`.
+This installs the `vox` command from the local source, including all dependencies.
 
 ## Usage
 
@@ -263,8 +263,28 @@ pyproject.toml        Package configuration
   horavox.log         Spoken words + error log
 ```
 
+## Development
+
+```bash
+git clone https://github.com/jcubic/horavox.git
+cd horavox
+pip install -r requirements.txt
+```
+
+This installs only the dependencies without installing the package itself. You can then run the script directly:
+
+```bash
+python src/horavox/cli.py --now
+```
+
+Alternatively, install in editable mode to get the `vox` command that reflects your source changes:
+
+```bash
+pip install -e .
+```
+
 ## License
 
-Copyright (C) [Jakub T. Jankiewicz](https://jakub.jankiewicz.org)
+Copyright (C) 2026 [Jakub T. Jankiewicz](https://jakub.jankiewicz.org)
 
 Released under MIT license

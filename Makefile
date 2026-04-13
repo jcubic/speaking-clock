@@ -1,9 +1,12 @@
 VERSION = 0.1.0
 
-.PHONY: publish version build clean
+.PHONY: publish publish-test version build clean
 
 publish: version build
 	twine upload dist/*
+
+publish-test: version build
+	twine upload --repository testpypi dist/*
 
 build: clean
 	python -m build

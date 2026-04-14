@@ -244,33 +244,7 @@ pyproject.toml        Package configuration
 
 ## Development
 
-```bash
-git clone https://github.com/jcubic/horavox.git
-cd horavox
-pip install -r requirements.txt
-```
-
-This installs only the dependencies without installing the package itself. You can then run the script directly:
-
-```bash
-python src/horavox/cli.py --now
-```
-
-Alternatively, install in editable mode to get the `vox` command that reflects your source changes:
-
-```bash
-pip install -e .
-```
-
-### Publishing to PyPI
-
-Update the `VERSION` variable in the `Makefile`, then run:
-
-```bash
-make publish
-```
-
-This updates the version in `pyproject.toml`, `cli.py`, and `README.md`, builds the package, and uploads it to PyPI.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and publishing instructions.
 
 ## Name
 

@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
@@ -28,7 +28,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y alsa-utils mpg123
       - run: pip install -e . -r requirements-dev.txt
       - run: make coverage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage.lcov

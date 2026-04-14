@@ -37,6 +37,7 @@ vox = "horavox.main:main"
 vox-clock = "horavox.clock:main"
 vox-now = "horavox.now:main"
 vox-stop = "horavox.stop:main"
+vox-list = "horavox.list:main"
 vox-voice = "horavox.voice:main"
 
 [tool.ruff]

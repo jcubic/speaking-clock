@@ -23,17 +23,6 @@ def parse_args():
         metavar="PID",
         help="Stop a specific instance by PID",
     )
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        dest="list_sessions",
-        help="List running instances (batch mode)",
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Include command line in --list output",
-    )
 
     return parser.parse_args()
 
@@ -51,15 +40,6 @@ def main():
 def _main():
     args = parse_args()
     sessions = get_running_sessions()
-
-    # --list mode: print PIDs for scripting
-    if args.list_sessions:
-        for _, data in sessions:
-            if args.verbose:
-                print(f"{data['pid']}\t{data.get('command', '?')}")
-            else:
-                print(data["pid"])
-        return
 
     # --pid mode: stop a specific instance
     if args.pid is not None:

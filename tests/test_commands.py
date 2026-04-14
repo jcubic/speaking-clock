@@ -184,44 +184,46 @@ class TestNowCommand:
 # ==================== stop.py ====================
 
 
-class TestStopCommand:
-    def test_list_mode(self, capsys):
-        from horavox import stop
+class TestListCommand:
+    def test_list_pids(self, capsys):
+        from horavox import list as list_cmd
 
         sessions = [
             ("/tmp/a.json", {"pid": 111, "command": "vox clock"}),
             ("/tmp/b.json", {"pid": 222, "command": "vox clock --freq 30"}),
         ]
-        with mock.patch.object(sys, "argv", ["vox stop", "--list"]):
-            with mock.patch.object(stop, "get_running_sessions", return_value=sessions):
-                stop.main()
+        with mock.patch.object(sys, "argv", ["vox list"]):
+            with mock.patch.object(list_cmd, "get_running_sessions", return_value=sessions):
+                list_cmd.main()
         out = capsys.readouterr().out
         assert "111" in out
         assert "222" in out
         assert "vox clock" not in out  # no --verbose
 
     def test_list_verbose(self, capsys):
-        from horavox import stop
+        from horavox import list as list_cmd
 
         sessions = [
             ("/tmp/a.json", {"pid": 111, "command": "vox clock --freq 30"}),
         ]
-        with mock.patch.object(sys, "argv", ["vox stop", "--list", "--verbose"]):
-            with mock.patch.object(stop, "get_running_sessions", return_value=sessions):
-                stop.main()
+        with mock.patch.object(sys, "argv", ["vox list", "--verbose"]):
+            with mock.patch.object(list_cmd, "get_running_sessions", return_value=sessions):
+                list_cmd.main()
         out = capsys.readouterr().out
         assert "111" in out
         assert "vox clock --freq 30" in out
 
     def test_list_empty(self, capsys):
-        from horavox import stop
+        from horavox import list as list_cmd
 
-        with mock.patch.object(sys, "argv", ["vox stop", "--list"]):
-            with mock.patch.object(stop, "get_running_sessions", return_value=[]):
-                stop.main()
+        with mock.patch.object(sys, "argv", ["vox list"]):
+            with mock.patch.object(list_cmd, "get_running_sessions", return_value=[]):
+                list_cmd.main()
         out = capsys.readouterr().out
         assert out.strip() == ""
 
+
+class TestStopCommand:
     def test_pid_mode(self):
         from horavox import stop
 
@@ -332,11 +334,9 @@ class TestStopCommand:
     def test_parse_args(self):
         from horavox.stop import parse_args
 
-        with mock.patch.object(sys, "argv", ["vox stop", "--pid", "123", "--list", "--verbose"]):
+        with mock.patch.object(sys, "argv", ["vox stop", "--pid", "123"]):
             args = parse_args()
         assert args.pid == 123
-        assert args.list_sessions is True
-        assert args.verbose is True
 
 
 # ==================== clock.py ====================

@@ -11,6 +11,7 @@ COMMANDS = {
     "clock": ("horavox.clock", "Run the speaking clock"),
     "now": ("horavox.now", "Speak the current time once"),
     "stop": ("horavox.stop", "Stop running background instances"),
+    "list": ("horavox.list", "List running background instances"),
     "voice": ("horavox.voice", "Manage Piper voice models"),
 }
 

@@ -213,12 +213,25 @@ class TestVoxNow:
 # ==================== vox stop ====================
 
 
+class TestVoxList:
+    def test_help(self):
+        rc, out, _ = run_subcommand("list", "--help")
+        assert rc == 0
+        assert "vox list" in out
+        assert "--verbose" in out
+
+    def test_list_empty(self):
+        """No instances running should produce no output."""
+        rc, out, _ = run_subcommand("list")
+        assert rc == 0
+        assert out.strip() == ""
+
+
 class TestVoxStop:
     def setup_method(self):
         """Stop any leftover instances before each test."""
-        # Clean up stale sessions
         while True:
-            rc, out, _ = run_subcommand("stop", "--list")
+            rc, out, _ = run_subcommand("list")
             if not out.strip():
                 break
             pid = out.strip().split("\n")[0]
@@ -229,19 +242,12 @@ class TestVoxStop:
         assert rc == 0
         assert "vox stop" in out
         assert "--pid" in out
-        assert "--list" in out
 
     def test_no_instances(self):
         """When nothing is running, should say so."""
         rc, out, _ = run_subcommand("stop")
         assert rc == 0
         assert "No HoraVox instances running" in out
-
-    def test_list_empty(self):
-        """--list with nothing running should produce no output."""
-        rc, out, _ = run_subcommand("stop", "--list")
-        assert rc == 0
-        assert out.strip() == ""
 
     def test_pid_not_found(self):
         """--pid with nonexistent PID should error."""
@@ -250,8 +256,7 @@ class TestVoxStop:
         assert "No HoraVox instance with PID" in out
 
     def test_start_and_stop(self):
-        """Start a daemon, verify it appears in --list, then stop it."""
-        # Start a nosound daemon
+        """Start a daemon, verify it appears in list, then stop it."""
         subprocess.run(
             [sys.executable, "-m", "horavox.clock", "--background", "--nosound"],
             capture_output=True,
@@ -263,13 +268,13 @@ class TestVoxStop:
         time.sleep(1)
 
         # List should show it
-        rc, out, _ = run_subcommand("stop", "--list")
+        rc, out, _ = run_subcommand("list")
         assert rc == 0
         pid = out.strip()
         assert pid.isdigit()
 
         # Verbose list should include the command
-        rc, out, _ = run_subcommand("stop", "--list", "--verbose")
+        rc, out, _ = run_subcommand("list", "--verbose")
         assert "nosound" in out
 
         # Stop it
@@ -278,7 +283,7 @@ class TestVoxStop:
         assert "Stopped" in out
 
         # Should be gone
-        rc, out, _ = run_subcommand("stop", "--list")
+        rc, out, _ = run_subcommand("list")
         assert out.strip() == ""
 
 

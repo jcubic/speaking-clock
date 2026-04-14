@@ -43,6 +43,7 @@ def main():
     ext = shutil.which(f"vox-{cmd}")
     if ext:
         os.execvp(ext, [f"vox-{cmd}"] + sys.argv[2:])
+        return  # execvp never returns, but safety for tests
     print(f"Unknown command: {cmd}\n")
     print_help()
     sys.exit(1)

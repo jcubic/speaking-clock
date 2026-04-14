@@ -13,6 +13,7 @@ import sys
 import time
 import traceback
 import urllib.request
+import uuid
 import wave
 
 from daemonize import Daemonize
@@ -33,10 +34,11 @@ USER_DIR = os.path.expanduser("~/.horavox")
 VOICES_DIR = os.path.join(USER_DIR, "voices")
 CACHE_DIR = os.path.join(USER_DIR, "cache")
 
+SESSIONS_DIR = os.path.join(USER_DIR, "sessions")
+
 VOICES_JSON_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/voices.json"
 VOICES_BASE_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main"
 TEMP_WAV = "/tmp/horavox.wav"
-PID_FILE = os.path.join(CACHE_DIR, "horavox.pid")
 LOG_FILE = os.path.join(USER_DIR, "horavox.log")
 # ============================================
 
@@ -313,9 +315,10 @@ def get_spoken_time(lang_data, hour, minute):
 
 
 def ensure_user_dirs():
-    """Create ~/.horavox/ subdirectories for cache and voices."""
+    """Create ~/.horavox/ subdirectories for cache, voices, and sessions."""
     os.makedirs(CACHE_DIR, exist_ok=True)
     os.makedirs(VOICES_DIR, exist_ok=True)
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 
 def get_voices_catalog():
@@ -539,30 +542,53 @@ def speak(voice, text, beep_count=0):
 # ==================== DAEMON ====================
 
 
-def stop_daemon():
-    """Stop a running background daemon via PID file."""
-    if not os.path.exists(PID_FILE):
-        log("No PID file found. Is HoraVox running in the background?")
-        return False
-    try:
-        with open(PID_FILE, "r") as f:
-            pid = int(f.read().strip())
-    except (ValueError, OSError):
-        log("Invalid PID file. Cleaning up.")
-        os.remove(PID_FILE)
-        return False
+def get_running_sessions():
+    """Return list of active sessions as (filepath, data) tuples.
 
-    # Check if process is alive
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        log(f"Stale PID file (process {pid} not running). Cleaning up.")
-        os.remove(PID_FILE)
-        return False
+    Each session file is a JSON with {"pid": int, "command": str}.
+    Stale sessions (dead processes) are cleaned up automatically.
+    """
+    if not os.path.exists(SESSIONS_DIR):
+        return []
+    sessions = []
+    for name in os.listdir(SESSIONS_DIR):
+        path = os.path.join(SESSIONS_DIR, name)
+        if not name.endswith(".json"):
+            # Clean up orphaned .pid files from Daemonize
+            if name.endswith(".pid"):
+                os.remove(path)
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            pid = data["pid"]
+            os.kill(pid, 0)  # check if alive
+            sessions.append((path, data))
+        except (json.JSONDecodeError, KeyError, ValueError):
+            os.remove(path)
+        except OSError:
+            # Process is dead, clean up stale session
+            os.remove(path)
+    return sessions
 
+
+def create_session(pid, session_id):
+    """Create a session file for a new daemon instance."""
+    session_file = os.path.join(SESSIONS_DIR, f"{session_id}.json")
+    data = {
+        "pid": pid,
+        "command": " ".join(sys.argv),
+    }
+    with open(session_file, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    return session_file
+
+
+def kill_session(path, data):
+    """Kill a daemon process and remove its session file."""
+    pid = data["pid"]
     try:
         os.kill(pid, signal.SIGTERM)
-        # Wait up to 5 seconds for process to exit
         for _ in range(50):
             try:
                 os.kill(pid, 0)
@@ -571,24 +597,63 @@ def stop_daemon():
             time.sleep(0.1)
         else:
             os.kill(pid, signal.SIGKILL)
-        log(f"Stopped background daemon (PID {pid}).")
-        return True
+        print(f"Stopped (PID {pid}).")
     except OSError as e:
-        log(f"Error stopping process {pid}: {e}")
-        return False
+        print(f"Error stopping process {pid}: {e}")
+    if os.path.exists(path):
+        os.remove(path)
+    # Remove the companion .pid file left by Daemonize
+    pid_path = path.replace(".json", ".pid")
+    if os.path.exists(pid_path):
+        os.remove(pid_path)
 
 
-def is_daemon_running():
-    """Check if a daemon is already running. Returns PID or None."""
-    if not os.path.exists(PID_FILE):
-        return None
+def stop_daemon():
+    """Stop running daemon(s). Interactive selection when multiple are running."""
+    sessions = get_running_sessions()
+    if not sessions:
+        print("No HoraVox instances running.")
+        return
+
+    if len(sessions) == 1:
+        path, data = sessions[0]
+        kill_session(path, data)
+        return
+
+    # Multiple instances: interactive selection with arrow keys
+    import inquirer
+
+    STOP_ALL = "__all__"
+    choices = []
+    for path, data in sessions:
+        label = f"PID {data['pid']}  {data.get('command', '?')}"
+        choices.append((label, path))
+    choices.append(("Stop all", STOP_ALL))
+
     try:
-        with open(PID_FILE, "r") as f:
-            pid = int(f.read().strip())
-        os.kill(pid, 0)
-        return pid
-    except (ValueError, OSError):
-        return None
+        questions = [
+            inquirer.List(
+                "session",
+                message=f"{len(sessions)} instances running. Select to stop",
+                choices=choices,
+            )
+        ]
+        answer = inquirer.prompt(questions)
+    except KeyboardInterrupt:
+        return
+
+    if answer is None:
+        return
+
+    selected = answer["session"]
+    if selected == STOP_ALL:
+        for path, data in sessions:
+            kill_session(path, data)
+    else:
+        for path, data in sessions:
+            if path == selected:
+                kill_session(path, data)
+                break
 
 
 # ==================== MAIN ====================
@@ -846,12 +911,6 @@ def _main():
 
     # --background mode: daemonize using the daemonize library
     if args.background:
-        existing_pid = is_daemon_running()
-        if existing_pid:
-            log(f"HoraVox is already running in the background (PID {existing_pid}).")
-            log("Use --stop to stop it first.")
-            return
-
         # Validate voice exists before forking (so errors are visible)
         if not NOSOUND:
             voice_path = resolve_voice(args, lang)
@@ -860,7 +919,13 @@ def _main():
 
         ensure_user_dirs()
 
+        # Each instance gets its own session with a unique PID file
+        session_id = str(uuid.uuid4())
+        pid_file = os.path.join(SESSIONS_DIR, f"{session_id}.pid")
+
         def daemon_action():
+            # Write session JSON now that we're in the forked process
+            create_session(os.getpid(), session_id)
             try:
                 run_vox(
                     args, lang, lang_data, time_offset, start_minutes, end_minutes
@@ -871,7 +936,7 @@ def _main():
 
         daemon = Daemonize(
             app="horavox",
-            pid=PID_FILE,
+            pid=pid_file,
             action=daemon_action,
             chdir=PKG_DIR,
         )

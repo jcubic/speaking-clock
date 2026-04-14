@@ -14,7 +14,7 @@ import traceback
 import urllib.request
 import wave
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # ================== PATHS ==================
 # Package data (ships with the package, read-only)

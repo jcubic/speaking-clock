@@ -1,3 +1,7 @@
+## 0.3.0
+### Feature
+* add `vox list` sub-command
+
 ## 0.2.0
 ### Feature
 * add interactive stop of background jobs

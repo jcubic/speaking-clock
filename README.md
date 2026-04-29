@@ -9,6 +9,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/jcubic/horavox/badge.svg?branch=master)](https://coveralls.io/github/jcubic/horavox?branch=master)
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/horavox)
 [![LICENSE MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/jcubic/horavox/blob/master/LICENSE)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjcubic%2Fhoravox.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjcubic%2Fhoravox?ref=badge_shield)
 
 A multi-language speaking clock that announces the time using [Piper](https://github.com/rhasspy/piper) text-to-speech. It runs entirely offline using local AI voice models -- no API key or internet connection required (except for the initial voice download). It speaks the current hour on the hour using natural language idioms (e.g., "quarter past two", "wpół do czwartej") and supports any language through JSON data files.
 
@@ -262,3 +263,6 @@ The logo use [Clipart from OpenClipart](https://openclipart.org/detail/351967/cl
 Copyright (C) 2026 [Jakub T. Jankiewicz](https://jakub.jankiewicz.org)
 
 Released under MIT license
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjcubic%2Fhoravox.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjcubic%2Fhoravox?ref=badge_large)

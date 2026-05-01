@@ -1,6 +1,8 @@
 VERSION = 0.2.0
 
-.PHONY: publish publish-test version build clean test coverage lint
+.PHONY: all publish publish-test version build clean test coverage lint
+
+all: version build
 
 publish: version build
 	twine upload dist/*

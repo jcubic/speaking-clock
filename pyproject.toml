@@ -7,7 +7,7 @@ name = "horavox"
 version = "0.2.0"
 description = "HoraVox - a multi-language speaking clock using local AI voice models"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.10"
 authors = [
     {name = "Jakub T. Jankiewicz", email = "me@jcubic.pl"},

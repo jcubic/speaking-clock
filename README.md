@@ -23,6 +23,7 @@ A multi-language speaking clock that announces the time using [Piper](https://gi
 - **Configurable interval** -- announce every N minutes with `--freq` (e.g., every 30 min)
 - **Volume control** -- set volume 0--100% with `--volume`
 - **Background mode** -- run as a daemon with `--background`, stop with `--stop`
+- **Autostart service** -- install as a system service with `vox install`, runs on login
 - **Hour beeps** -- 2 beeps on the full hour, 1 beep on the half hour
 - **Simulated time** -- debug with `--time HH:MM` to set a fake starting time
 - **Silent by default** -- no terminal output unless `--verbose` is passed
@@ -67,6 +68,8 @@ vox <command> [options]
 | `vox now` | Speak the current time once |
 | `vox stop` | Stop running background instances |
 | `vox voice` | Manage Piper voice models |
+| `vox install` | Install a command as an autostart service |
+| `vox remove` | Remove installed service instances |
 
 Run `vox <command> --help` for command-specific options.
 
@@ -130,6 +133,39 @@ Installed voices are marked with `[*]`. Downloads show a progress bar below the 
 ### Volume and sound
 
 `--nosound` is equivalent to `--volume 0` -- both skip voice loading and audio playback entirely. Available on `vox clock` and `vox now`.
+
+### vox install
+
+Install a clock command as an autostart service that runs on login:
+
+```bash
+vox install "clock --lang pl --voice pl_PL-mc_speech-medium --start 9 --end 1 --freq 30 --volume 30"
+vox install --list                     # list installed instances
+```
+
+The quoted argument is any valid `vox` subcommand with its flags. The `--background` flag is stripped automatically since the service manager handles that.
+
+On the first install, a platform-specific service is registered and started:
+
+| Platform | Mechanism |
+|----------|-----------|
+| Linux | systemd user service (`~/.config/systemd/user/horavox.service`) |
+| macOS | launchd user agent (`~/Library/LaunchAgents/com.horavox.service.plist`) |
+| Windows | Startup folder script (`%APPDATA%\...\Startup\horavox.vbs`) |
+
+Subsequent installs add instances to the registry and signal the running service to reload.
+
+### vox remove
+
+Remove installed service instances:
+
+```bash
+vox remove <id>                        # remove a specific instance
+vox remove --all                       # remove all instances
+vox remove                             # interactive selection if multiple
+```
+
+When the last instance is removed, the service is automatically unregistered.
 
 ### Custom commands
 
@@ -241,6 +277,7 @@ pyproject.toml        Package configuration
 ~/.horavox/           Runtime data (created automatically)
   voices/             Downloaded Piper voice models (.onnx)
   cache/              Voice catalog cache + PID file
+  data.json           Installed service instances registry
   horavox.log         Spoken words + error log
 ```
 

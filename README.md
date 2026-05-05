@@ -68,6 +68,7 @@ vox <command> [options]
 | `vox now` | Speak the current time once |
 | `vox stop` | Stop running background instances |
 | `vox voice` | Manage Piper voice models |
+| `vox at` | Speak the time at specified times |
 | `vox install` | Install a command as an autostart service |
 | `vox remove` | Remove installed service instances |
 
@@ -133,6 +134,26 @@ Installed voices are marked with `[*]`. Downloads show a progress bar below the 
 ### Volume and sound
 
 `--nosound` is equivalent to `--volume 0` -- both skip voice loading and audio playback entirely. Available on `vox clock` and `vox now`.
+
+### vox at
+
+Speak the time at specific times of day:
+
+```bash
+vox at 9:00,12:00,18:00                # announce at 9am, noon, and 6pm
+vox at 8:30,17:00 --lang pl            # Polish announcements
+vox at 9:00,12:00 --mode modern        # digital style
+vox at 9:00,12:00 --background         # run as a daemon
+vox at 9:00,12:00 --volume 30          # quiet
+```
+
+Times are comma-separated in `HH:MM` format. Duplicates are ignored, order doesn't matter. Supports the same `--lang`, `--voice`, `--mode`, `--volume`, `--background`, and `--debug` flags as `vox clock`.
+
+Works with `vox install` too:
+
+```bash
+vox install "at 9:00,12:00,18:00 --lang en --volume 50"
+```
 
 ### vox install
 

@@ -89,6 +89,8 @@ def main():
 
 def _main():
     args = parse_args()
+    from horavox.config import apply_config
+    apply_config(args)
     configure(
         verbose=args.verbose,
         nosound=args.nosound,

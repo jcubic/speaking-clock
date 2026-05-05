@@ -44,7 +44,10 @@ def main():
         from horavox.config import get_aliases
         aliases = get_aliases()
         alias_args = aliases.get(cmd, "").split() if cmd in aliases else []
-        sys.argv = [f"vox {cmd}"] + alias_args + sys.argv[2:]
+        merged = alias_args + sys.argv[2:]
+        if os.environ.get("HORAVOX_SERVICE"):
+            merged = [a for a in merged if a != "--background"]
+        sys.argv = [f"vox {cmd}"] + merged
         mod = importlib.import_module(COMMANDS[cmd][0])
         mod.main()
         return

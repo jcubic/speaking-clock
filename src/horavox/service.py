@@ -74,11 +74,14 @@ def _reconcile(vox, children):
 def _start_child(vox, children, instance_id, command):
     args = command.split()
     log_to_file(f"service: starting instance {instance_id}: {command}")
+    env = os.environ.copy()
+    env["HORAVOX_SERVICE"] = "1"
     try:
         proc = subprocess.Popen(
             [vox] + args + ["--nosound"] if os.environ.get("HORAVOX_TEST") else [vox] + args,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env=env,
         )
         children[instance_id] = proc
     except OSError as e:

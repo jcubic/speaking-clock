@@ -1001,6 +1001,37 @@ class TestAliasDispatch:
         # clock alias should not affect now command
         assert captured_argv == ["vox now", "--debug"]
 
+    def test_service_strips_background_from_alias(self):
+        self._write_config({"settings": {}, "alias": {"clock": "--start 9 --end 1 --background --freq 30"}})
+        captured_argv = []
+
+        def fake_main():
+            captured_argv.extend(sys.argv)
+
+        from horavox.main import main
+        with mock.patch.dict(os.environ, {"HORAVOX_SERVICE": "1"}):
+            with mock.patch.object(sys, "argv", ["vox", "clock", "--lang", "pl"]):
+                with mock.patch("horavox.clock.main", side_effect=fake_main):
+                    main()
+        assert "--background" not in captured_argv
+        assert "--start" in captured_argv
+        assert "--freq" in captured_argv
+
+    def test_service_strips_background_from_explicit_args(self):
+        self._write_config({"settings": {}, "alias": {}})
+        captured_argv = []
+
+        def fake_main():
+            captured_argv.extend(sys.argv)
+
+        from horavox.main import main
+        with mock.patch.dict(os.environ, {"HORAVOX_SERVICE": "1"}):
+            with mock.patch.object(sys, "argv", ["vox", "clock", "--background", "--lang", "pl"]):
+                with mock.patch("horavox.clock.main", side_effect=fake_main):
+                    main()
+        assert "--background" not in captured_argv
+        assert "--lang" in captured_argv
+
 
 class TestApplyConfig:
     def setup_method(self):

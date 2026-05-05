@@ -13,6 +13,9 @@ COMMANDS = {
     "stop": ("horavox.stop", "Stop running background instances"),
     "list": ("horavox.list", "List running background instances"),
     "voice": ("horavox.voice", "Manage Piper voice models"),
+    "install": ("horavox.install", "Install a command as an autostart service"),
+    "remove": ("horavox.remove", "Remove installed service instances"),
+    "service": ("horavox.service", "Run the service manager (internal)"),
 }
 
 

@@ -3,6 +3,8 @@
 Tests the option parsing and dispatch logic by mocking core functions.
 """
 
+import argparse
+import os
 import sys
 from unittest import mock
 
@@ -588,6 +590,439 @@ class TestClockCommand:
                     with pytest.raises(RuntimeError):
                         clock.main()
                     mock_log.assert_called_once()
+
+
+# ==================== config.py ====================
+
+
+class TestConfigCommand:
+    def setup_method(self):
+        import tempfile
+        self.tmpdir = tempfile.mkdtemp(prefix="horavox-test-cfg-")
+        self.config_path = os.path.join(self.tmpdir, "config.json")
+        self._patch_path = mock.patch("horavox.config.CONFIG_PATH", self.config_path)
+        self._patch_user = mock.patch("horavox.config.USER_DIR", self.tmpdir)
+        self._patch_path.start()
+        self._patch_user.start()
+
+    def teardown_method(self):
+        self._patch_path.stop()
+        self._patch_user.stop()
+
+    def test_list_empty(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "No configuration set" in out
+
+    def test_set_and_list(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "lang=pl"]):
+            config.main()
+        with mock.patch.object(sys, "argv", ["vox config"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "lang=pl" in out
+
+    def test_get_key(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "lang=en"]):
+            config.main()
+        with mock.patch.object(sys, "argv", ["vox config", "lang"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "lang=en" in out
+
+    def test_get_key_not_set(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "lang"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "not set" in out
+
+    def test_unset_key(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "lang=pl"]):
+            config.main()
+        with mock.patch.object(sys, "argv", ["vox config", "--unset", "lang"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "Unset" in out
+
+    def test_unset_key_not_set(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "--unset", "lang"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "not set" in out
+
+    def test_invalid_key(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "bogus=x"]):
+            with pytest.raises(SystemExit):
+                config.main()
+        out = capsys.readouterr().out
+        assert "unknown key" in out
+
+    def test_invalid_key_get(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "bogus"]):
+            with pytest.raises(SystemExit):
+                config.main()
+        out = capsys.readouterr().out
+        assert "unknown key" in out
+
+    def test_invalid_key_unset(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "--unset", "bogus"]):
+            with pytest.raises(SystemExit):
+                config.main()
+        out = capsys.readouterr().out
+        assert "unknown key" in out
+
+    def test_invalid_mode_value(self, capsys):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config", "mode=invalid"]):
+            with pytest.raises(SystemExit):
+                config.main()
+        out = capsys.readouterr().out
+        assert "classic" in out and "modern" in out
+
+    def test_set_all_keys(self, capsys):
+        from horavox import config
+        for setting in ["lang=pl", "voice=test-voice", "mode=modern"]:
+            with mock.patch.object(sys, "argv", ["vox config", setting]):
+                config.main()
+        with mock.patch.object(sys, "argv", ["vox config"]):
+            config.main()
+        out = capsys.readouterr().out
+        assert "lang=pl" in out
+        assert "voice=test-voice" in out
+        assert "mode=modern" in out
+
+    def test_keyboard_interrupt(self):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config"]):
+            with mock.patch.object(config, "load_config", side_effect=KeyboardInterrupt):
+                config.main()
+
+    def test_exception_logs_error(self):
+        from horavox import config
+        with mock.patch.object(sys, "argv", ["vox config"]):
+            with mock.patch.object(config, "load_config", side_effect=RuntimeError("boom")):
+                with mock.patch.object(config, "log_error") as mock_log:
+                    with pytest.raises(RuntimeError):
+                        config.main()
+                    mock_log.assert_called_once()
+
+    def test_dispatches_from_main(self):
+        from horavox.main import main
+        with mock.patch.object(sys, "argv", ["vox", "config"]):
+            with mock.patch("horavox.config.main") as m:
+                main()
+                m.assert_called_once()
+
+
+class TestApplyConfig:
+    def setup_method(self):
+        import tempfile
+        self.tmpdir = tempfile.mkdtemp(prefix="horavox-test-cfg-")
+        self.config_path = os.path.join(self.tmpdir, "config.json")
+        self._patch_path = mock.patch("horavox.config.CONFIG_PATH", self.config_path)
+        self._patch_user = mock.patch("horavox.config.USER_DIR", self.tmpdir)
+        self._patch_path.start()
+        self._patch_user.start()
+
+    def teardown_method(self):
+        self._patch_path.stop()
+        self._patch_user.stop()
+
+    def _write_config(self, data):
+        import json
+        os.makedirs(self.tmpdir, exist_ok=True)
+        with open(self.config_path, "w") as f:
+            json.dump(data, f)
+
+    def test_applies_lang(self):
+        from horavox.config import apply_config
+        self._write_config({"lang": "pl"})
+        args = argparse.Namespace(lang=None, voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now"]):
+            apply_config(args)
+        assert args.lang == "pl"
+
+    def test_applies_voice(self):
+        from horavox.config import apply_config
+        self._write_config({"voice": "test-voice"})
+        args = argparse.Namespace(lang=None, voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now"]):
+            apply_config(args)
+        assert args.voice == "test-voice"
+
+    def test_applies_mode(self):
+        from horavox.config import apply_config
+        self._write_config({"mode": "modern"})
+        args = argparse.Namespace(lang=None, voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now"]):
+            apply_config(args)
+        assert args.mode == "modern"
+
+    def test_cli_lang_overrides_config(self):
+        from horavox.config import apply_config
+        self._write_config({"lang": "pl"})
+        args = argparse.Namespace(lang="en", voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now", "--lang", "en"]):
+            apply_config(args)
+        assert args.lang == "en"
+
+    def test_cli_voice_overrides_config(self):
+        from horavox.config import apply_config
+        self._write_config({"voice": "config-voice"})
+        args = argparse.Namespace(lang=None, voice="cli-voice", mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now", "--voice", "cli-voice"]):
+            apply_config(args)
+        assert args.voice == "cli-voice"
+
+    def test_cli_mode_overrides_config(self):
+        from horavox.config import apply_config
+        self._write_config({"mode": "modern"})
+        args = argparse.Namespace(lang=None, voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now", "--mode", "classic"]):
+            apply_config(args)
+        assert args.mode == "classic"
+
+    def test_no_config_file(self):
+        from horavox.config import apply_config
+        args = argparse.Namespace(lang=None, voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now"]):
+            apply_config(args)
+        assert args.lang is None
+        assert args.voice is None
+        assert args.mode == "classic"
+
+    def test_partial_config(self):
+        from horavox.config import apply_config
+        self._write_config({"lang": "pl"})
+        args = argparse.Namespace(lang=None, voice=None, mode="classic")
+        with mock.patch.object(sys, "argv", ["vox", "now"]):
+            apply_config(args)
+        assert args.lang == "pl"
+        assert args.voice is None
+        assert args.mode == "classic"
+
+
+# ==================== at.py ====================
+
+
+class TestAtCommand:
+    def test_debug_exit_at_scheduled_time(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "9:00,12:00,18:00", "--debug", "--exit", "--time", "12:00", "--lang", "en"]
+        ):
+            with mock.patch.object(at, "speak") as mock_speak:
+                at.main()
+                mock_speak.assert_called_once()
+                text = mock_speak.call_args[0][1]
+                assert "noon" in text.lower()
+
+    def test_debug_exit_not_at_scheduled_time(self, capsys):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "9:00,12:00,18:00", "--debug", "--exit", "--time", "12:01"]
+        ):
+            with mock.patch.object(at, "speak") as mock_speak:
+                at.main()
+                mock_speak.assert_not_called()
+        out = capsys.readouterr().out
+        assert "not at a scheduled time" in out
+
+    def test_debug_exit_shows_schedule(self, capsys):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "9:00,18:00", "--debug", "--exit", "--time", "10:00"]
+        ):
+            at.main()
+        out = capsys.readouterr().out
+        assert "9:00" in out
+        assert "18:00" in out
+
+    def test_debug_exit_first_time(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "9:00,12:00", "--debug", "--exit", "--time", "9:00", "--lang", "en"]
+        ):
+            with mock.patch.object(at, "speak") as mock_speak:
+                at.main()
+                mock_speak.assert_called_once()
+
+    def test_debug_exit_last_time(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "9:00,18:00", "--debug", "--exit", "--time", "18:00", "--lang", "en"]
+        ):
+            with mock.patch.object(at, "speak") as mock_speak:
+                at.main()
+                mock_speak.assert_called_once()
+
+    def test_single_time(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "12:00", "--debug", "--exit", "--time", "12:00", "--lang", "en"]
+        ):
+            with mock.patch.object(at, "speak") as mock_speak:
+                at.main()
+                mock_speak.assert_called_once()
+
+    def test_modern_mode(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "17:00", "--debug", "--exit", "--time", "17:00", "--mode", "modern", "--lang", "pl"]
+        ):
+            with mock.patch.object(at, "speak") as mock_speak:
+                at.main()
+                text = mock_speak.call_args[0][1]
+                assert "siedemnasta" in text
+
+    def test_keyboard_interrupt(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "12:00", "--debug", "--exit", "--time", "12:00"]
+        ):
+            with mock.patch.object(at, "speak", side_effect=KeyboardInterrupt):
+                at.main()
+
+    def test_exception_logs_error(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "12:00", "--debug", "--exit", "--time", "12:00"]
+        ):
+            with mock.patch.object(at, "speak", side_effect=RuntimeError("boom")):
+                with mock.patch.object(at, "log_error") as mock_log:
+                    with pytest.raises(RuntimeError):
+                        at.main()
+                    mock_log.assert_called_once()
+
+    def test_parse_times_sorted(self):
+        from horavox.at import parse_times
+
+        result = parse_times("18:00,9:00,12:00")
+        assert result == [(9, 0), (12, 0), (18, 0)]
+
+    def test_parse_times_deduplicates(self):
+        from horavox.at import parse_times
+
+        result = parse_times("12:00,12:00,9:00")
+        assert result == [(9, 0), (12, 0)]
+
+    def test_parse_times_single(self):
+        from horavox.at import parse_times
+
+        result = parse_times("9:30")
+        assert result == [(9, 30)]
+
+    def test_parse_times_with_spaces(self):
+        from horavox.at import parse_times
+
+        result = parse_times("9:00, 12:00, 18:00")
+        assert result == [(9, 0), (12, 0), (18, 0)]
+
+    def test_parse_times_empty_error(self):
+        from horavox.at import parse_times
+
+        with pytest.raises(SystemExit):
+            parse_times("")
+
+    def test_parse_args_basic(self):
+        from horavox.at import parse_args
+
+        with mock.patch.object(sys, "argv", ["vox at", "9:00,12:00"]):
+            args = parse_args()
+        assert args.times == "9:00,12:00"
+        assert args.mode == "classic"
+        assert args.volume == 100
+
+    def test_parse_args_all_options(self):
+        from horavox.at import parse_args
+
+        with mock.patch.object(
+            sys, "argv",
+            ["vox at", "9:00", "--lang", "pl", "--voice", "test", "--mode", "modern",
+             "--time", "9:00", "--exit", "--background", "--verbose", "--volume", "50"]
+        ):
+            args = parse_args()
+        assert args.times == "9:00"
+        assert args.lang == "pl"
+        assert args.voice == "test"
+        assert args.mode == "modern"
+        assert args.exit is True
+        assert args.background is True
+        assert args.volume == 50
+
+    def test_background_mode(self):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "12:00", "--background", "--nosound"]
+        ):
+            with mock.patch.object(at, "Daemonize") as mock_daemon:
+                mock_instance = mock.MagicMock()
+                mock_daemon.return_value = mock_instance
+                at.main()
+                mock_daemon.assert_called_once()
+                mock_instance.start.assert_called_once()
+
+    def test_run_at_loop_fires(self):
+        """Test the main loop fires at a scheduled time then breaks."""
+        import datetime
+
+        from horavox import at as at_mod
+        from horavox.at import run_at
+
+        core.configure(debug=True)
+        lang_data, lang = core.load_language_data("en", "classic")
+        args = mock.MagicMock()
+        args.exit = False
+        args.time = None
+        args.voice = None
+        schedule = [(12, 0)]
+        now = datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
+        time_offset = now - datetime.datetime.now()
+        call_count = [0]
+
+        def fake_sleep(t):
+            call_count[0] += 1
+            if call_count[0] > 3:
+                raise KeyboardInterrupt
+
+        with mock.patch.object(at_mod, "speak"):
+            with mock.patch.object(at_mod, "prepare_speech"):
+                with mock.patch.object(at_mod, "play_speech"):
+                    with mock.patch.object(at_mod, "play_beep"):
+                        with mock.patch.object(at_mod.time, "sleep", side_effect=fake_sleep):
+                            try:
+                                run_at(args, lang, lang_data, time_offset, schedule)
+                            except KeyboardInterrupt:
+                                pass
+        assert call_count[0] > 0
+
+    def test_dispatches_from_main(self):
+        from horavox.main import main
+
+        with mock.patch.object(sys, "argv", ["vox", "at"]):
+            with mock.patch("horavox.at.main") as m:
+                main()
+                m.assert_called_once()
 
 
 # ==================== voice.py ====================

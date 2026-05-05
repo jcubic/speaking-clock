@@ -490,6 +490,14 @@ def create_session(pid, session_id):
     return session_file
 
 
+def remove_session(session_id):
+    """Remove session files for a given session ID."""
+    for ext in (".json", ".pid"):
+        path = os.path.join(SESSIONS_DIR, f"{session_id}{ext}")
+        if os.path.exists(path):
+            os.remove(path)
+
+
 def kill_session(path, data):
     """Kill a daemon process and remove its session file."""
     pid = data["pid"]

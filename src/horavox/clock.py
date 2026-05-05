@@ -27,6 +27,7 @@ from horavox.core import (
     play_beep,
     play_speech,
     prepare_speech,
+    remove_session,
     resolve_voice,
     speak,
     time_to_minutes,
@@ -277,6 +278,8 @@ def _main():
             except Exception:
                 log_error()
                 raise
+            finally:
+                remove_session(session_id)
 
         daemon = Daemonize(
             app="horavox",

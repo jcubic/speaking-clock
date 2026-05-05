@@ -4,6 +4,8 @@
 * add system integration with `vox install/remove`
 * add `vox at` command
 * add `vox config` command
+### Bugfix
+* fix cleaning old session files
 
 ## 0.2.0
 ### Feature

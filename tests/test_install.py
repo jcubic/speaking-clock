@@ -8,9 +8,6 @@ from unittest import mock
 
 import pytest
 
-from horavox import core
-
-
 # ==================== registry.py ====================
 
 
@@ -468,6 +465,7 @@ class TestServiceManager:
 
     def test_stop_child_kill_on_timeout(self):
         import subprocess
+
         from horavox.service import _stop_child
         proc = mock.MagicMock()
         proc.poll.return_value = None

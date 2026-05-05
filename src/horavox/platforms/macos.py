@@ -52,7 +52,7 @@ def reload():
         ["launchctl", "list", LABEL], capture_output=True, text=True,
     )
     if result.returncode == 0:
-        pid_line = [l for l in result.stdout.splitlines() if "PID" in l]
+        pid_line = [line for line in result.stdout.splitlines() if "PID" in line]
         if pid_line:
             import signal
             try:

@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 
-from horavox.core import log_error, log_to_file, USER_DIR
+from horavox.core import USER_DIR, log_error, log_to_file
 from horavox.platforms import get_platform
 from horavox.registry import (
     add_instance,
@@ -15,7 +15,6 @@ from horavox.registry import (
     remove_all,
     remove_instance,
 )
-
 
 SUBCOMMANDS = {
     "add": "Add a command as an autostart service instance",

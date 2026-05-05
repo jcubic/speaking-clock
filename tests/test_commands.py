@@ -2101,3 +2101,118 @@ class TestBuildParser:
                 with mock.patch("argcomplete.autocomplete"):
                     main()
                 mock_build.assert_called_once()
+
+
+# ==================== update.py ====================
+
+
+class TestUpdateCheck:
+    def setup_method(self):
+        import tempfile
+
+        self.tmpdir = tempfile.mkdtemp(prefix="horavox-test-update-")
+        self.cache_file = os.path.join(self.tmpdir, "update.json")
+        self._patch_cache = mock.patch("horavox.update.CACHE_FILE", self.cache_file)
+        self._patch_dir = mock.patch("horavox.update.CACHE_DIR", self.tmpdir)
+        self._patch_cache.start()
+        self._patch_dir.start()
+
+    def teardown_method(self):
+        self._patch_cache.stop()
+        self._patch_dir.stop()
+
+    def _mock_pypi(self, version):
+        import json
+
+        response_data = json.dumps({"info": {"version": version}}).encode()
+        mock_resp = mock.MagicMock()
+        mock_resp.read.return_value = response_data
+        mock_resp.__enter__ = mock.Mock(return_value=mock_resp)
+        mock_resp.__exit__ = mock.Mock(return_value=False)
+        return mock.patch("urllib.request.urlopen", return_value=mock_resp)
+
+    def test_shows_update_when_newer(self, capsys):
+        from horavox.update import check_for_update
+
+        with self._mock_pypi("9.9.9"):
+            check_for_update()
+        err = capsys.readouterr().err
+        assert "Update available" in err
+        assert "9.9.9" in err
+        assert "pip install --upgrade horavox" in err
+
+    def test_respects_no_color(self, capsys):
+        from horavox.update import check_for_update
+
+        with self._mock_pypi("9.9.9"):
+            with mock.patch.dict(os.environ, {"NO_COLOR": "1"}):
+                check_for_update()
+        err = capsys.readouterr().err
+        assert "\033[" not in err
+        assert "Update available" in err
+
+    def test_silent_when_current(self, capsys):
+        from horavox.update import check_for_update
+
+        with self._mock_pypi("0.2.0"):
+            check_for_update()
+        err = capsys.readouterr().err
+        assert err == ""
+
+    def test_silent_when_older(self, capsys):
+        from horavox.update import check_for_update
+
+        with self._mock_pypi("0.1.0"):
+            check_for_update()
+        err = capsys.readouterr().err
+        assert err == ""
+
+    def test_silent_on_network_error(self, capsys):
+        from horavox.update import check_for_update
+
+        with mock.patch("urllib.request.urlopen", side_effect=OSError("no network")):
+            check_for_update()
+        err = capsys.readouterr().err
+        assert err == ""
+
+    def test_uses_cache(self, capsys):
+        import json
+
+        from horavox.update import check_for_update
+
+        os.makedirs(self.tmpdir, exist_ok=True)
+        with open(self.cache_file, "w") as f:
+            json.dump({"latest": "9.9.9"}, f)
+
+        with mock.patch("urllib.request.urlopen") as mock_url:
+            check_for_update()
+            mock_url.assert_not_called()
+        err = capsys.readouterr().err
+        assert "9.9.9" in err
+
+    def test_cache_expired_fetches(self, capsys):
+        import json
+
+        from horavox.update import check_for_update
+
+        os.makedirs(self.tmpdir, exist_ok=True)
+        with open(self.cache_file, "w") as f:
+            json.dump({"latest": "0.2.0"}, f)
+        # Set mtime to 2 days ago
+        old_time = os.path.getmtime(self.cache_file) - 200000
+        os.utime(self.cache_file, (old_time, old_time))
+
+        with self._mock_pypi("9.9.9"):
+            check_for_update()
+        err = capsys.readouterr().err
+        assert "9.9.9" in err
+
+    def test_skipped_in_service_mode(self, capsys):
+        from horavox.main import main
+
+        with mock.patch.dict(os.environ, {"HORAVOX_SERVICE": "1"}):
+            with mock.patch.object(sys, "argv", ["vox", "now", "--debug", "--time", "12:00"]):
+                with mock.patch("horavox.now.main"):
+                    with mock.patch("horavox.update.check_for_update") as mock_check:
+                        main()
+                    mock_check.assert_not_called()

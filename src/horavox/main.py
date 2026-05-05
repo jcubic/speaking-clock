@@ -62,6 +62,12 @@ def main():
         argcomplete.autocomplete(parser)
         return
 
+    # Update check (skip for service-managed processes and completion)
+    if not os.environ.get("HORAVOX_SERVICE"):
+        from horavox.update import check_for_update
+
+        check_for_update()
+
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print_help()
         return

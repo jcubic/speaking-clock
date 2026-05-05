@@ -5,6 +5,7 @@
 * add `vox at` command
 * add `vox config` command
 * add shell completion
+* add update available notification message
 ### Bugfix
 * fix cleaning old session files
 

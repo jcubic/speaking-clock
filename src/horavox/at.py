@@ -267,9 +267,10 @@ def run_at_repeat(args, lang, lang_data, time_offset, schedule, repeat_days):
         else:
             times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
             days_str = _format_days(repeat_days)
-            week = _weekday_name(weekday)
-            time = now.strftime("%H:%M:%S")
-            log(f"  Time: {time} ({week}) - not at a scheduled time ({times_str} on {days_str}).")
+            log(
+                f"  Time: {now.strftime('%H:%M:%S')} ({_weekday_name(weekday)})"
+                f" - not at a scheduled time ({times_str} on {days_str})."
+            )
         return
 
     times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)

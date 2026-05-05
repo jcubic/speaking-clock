@@ -3,7 +3,6 @@
 import os
 import signal
 import subprocess
-import shutil
 import sys
 import time
 
@@ -25,7 +24,7 @@ def _main():
     os.makedirs(USER_DIR, exist_ok=True)
     log_to_file("service: starting")
 
-    vox = shutil.which("vox") or "vox"
+    vox = os.path.join(os.path.dirname(sys.executable), "vox")
     children = {}  # id -> subprocess.Popen
     running = True
 

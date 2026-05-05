@@ -40,6 +40,7 @@ def main():
     cmd = sys.argv[1]
     if cmd in COMMANDS:
         from horavox.config import get_aliases
+
         aliases = get_aliases()
         alias_args = aliases.get(cmd, "").split() if cmd in aliases else []
         merged = alias_args + sys.argv[2:]

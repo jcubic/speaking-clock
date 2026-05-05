@@ -160,6 +160,7 @@ def _cmd_delete():
             print("No installed instances.")
             return
         import inquirer
+
         choices = []
         for inst in instances:
             label = f"{inst['id']}  {inst['command']}"

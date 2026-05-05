@@ -49,12 +49,15 @@ def stop():
 
 def reload():
     result = subprocess.run(
-        ["launchctl", "list", LABEL], capture_output=True, text=True,
+        ["launchctl", "list", LABEL],
+        capture_output=True,
+        text=True,
     )
     if result.returncode == 0:
         pid_line = [line for line in result.stdout.splitlines() if "PID" in line]
         if pid_line:
             import signal
+
             try:
                 pid = int(pid_line[0].split()[-1])
                 os.kill(pid, signal.SIGHUP)
@@ -73,6 +76,8 @@ def unregister():
 
 def is_running():
     result = subprocess.run(
-        ["launchctl", "list", LABEL], capture_output=True, text=True,
+        ["launchctl", "list", LABEL],
+        capture_output=True,
+        text=True,
     )
     return result.returncode == 0

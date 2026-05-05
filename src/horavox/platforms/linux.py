@@ -48,28 +48,25 @@ def start():
 
 
 def stop():
-    subprocess.run(["systemctl", "--user", "stop", UNIT_NAME],
-                   capture_output=True)
+    subprocess.run(["systemctl", "--user", "stop", UNIT_NAME], capture_output=True)
 
 
 def reload():
-    subprocess.run(["systemctl", "--user", "kill", "-s", "SIGHUP", UNIT_NAME],
-                   capture_output=True)
+    subprocess.run(["systemctl", "--user", "kill", "-s", "SIGHUP", UNIT_NAME], capture_output=True)
 
 
 def unregister():
     stop()
-    subprocess.run(["systemctl", "--user", "disable", UNIT_NAME],
-                   capture_output=True)
+    subprocess.run(["systemctl", "--user", "disable", UNIT_NAME], capture_output=True)
     if os.path.exists(UNIT_PATH):
         os.remove(UNIT_PATH)
-    subprocess.run(["systemctl", "--user", "daemon-reload"],
-                   capture_output=True)
+    subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
 
 
 def is_running():
     result = subprocess.run(
         ["systemctl", "--user", "is-active", UNIT_NAME],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     return result.stdout.strip() == "active"

@@ -220,6 +220,7 @@ def main():
 def _main():
     args = parse_args()
     from horavox.config import apply_config
+
     apply_config(args)
     lang = args.lang or detect_language()
 

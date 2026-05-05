@@ -30,6 +30,7 @@ def add_instance(command):
     data = _load()
     instance_id = uuid.uuid4().hex[:6]
     from datetime import datetime, timezone
+
     entry = {
         "id": instance_id,
         "command": command,

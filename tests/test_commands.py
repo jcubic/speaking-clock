@@ -599,6 +599,7 @@ class TestClockCommand:
 class TestConfigCommand:
     def setup_method(self):
         import tempfile
+
         self.tmpdir = tempfile.mkdtemp(prefix="horavox-test-cfg-")
         self.config_path = os.path.join(self.tmpdir, "config.json")
         self._patch_path = mock.patch("horavox.config.CONFIG_PATH", self.config_path)
@@ -612,6 +613,7 @@ class TestConfigCommand:
 
     def test_list_empty(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config"]):
             config.main()
         out = capsys.readouterr().out
@@ -619,6 +621,7 @@ class TestConfigCommand:
 
     def test_set_and_list(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "lang=pl"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config"]):
@@ -628,6 +631,7 @@ class TestConfigCommand:
 
     def test_get_key(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "lang=en"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "lang"]):
@@ -637,6 +641,7 @@ class TestConfigCommand:
 
     def test_get_key_not_set(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "lang"]):
             config.main()
         out = capsys.readouterr().out
@@ -644,6 +649,7 @@ class TestConfigCommand:
 
     def test_unset_key(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "lang=pl"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "--unset", "lang"]):
@@ -653,6 +659,7 @@ class TestConfigCommand:
 
     def test_unset_key_not_set(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "--unset", "lang"]):
             config.main()
         out = capsys.readouterr().out
@@ -660,6 +667,7 @@ class TestConfigCommand:
 
     def test_invalid_key(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "bogus=x"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -668,6 +676,7 @@ class TestConfigCommand:
 
     def test_invalid_key_get(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "bogus"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -676,6 +685,7 @@ class TestConfigCommand:
 
     def test_invalid_key_unset(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "--unset", "bogus"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -684,6 +694,7 @@ class TestConfigCommand:
 
     def test_invalid_mode_value(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "mode=invalid"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -692,6 +703,7 @@ class TestConfigCommand:
 
     def test_invalid_volume_not_integer(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "volume=abc"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -700,6 +712,7 @@ class TestConfigCommand:
 
     def test_invalid_volume_out_of_range(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "volume=150"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -708,6 +721,7 @@ class TestConfigCommand:
 
     def test_invalid_volume_negative(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "volume=-1"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -716,6 +730,7 @@ class TestConfigCommand:
 
     def test_set_volume(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "volume=30"]):
             config.main()
         out = capsys.readouterr().out
@@ -723,6 +738,7 @@ class TestConfigCommand:
 
     def test_set_all_keys(self, capsys):
         from horavox import config
+
         for setting in ["lang=pl", "voice=test-voice", "mode=modern", "volume=50"]:
             with mock.patch.object(sys, "argv", ["vox config", setting]):
                 config.main()
@@ -736,12 +752,14 @@ class TestConfigCommand:
 
     def test_keyboard_interrupt(self):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config"]):
             with mock.patch.object(config, "load_config", side_effect=KeyboardInterrupt):
                 config.main()
 
     def test_exception_logs_error(self):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config"]):
             with mock.patch.object(config, "load_config", side_effect=RuntimeError("boom")):
                 with mock.patch.object(config, "log_error") as mock_log:
@@ -751,6 +769,7 @@ class TestConfigCommand:
 
     def test_set_alias_equals_form(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "alias.clock=--freq 30"]):
             config.main()
         out = capsys.readouterr().out
@@ -758,13 +777,17 @@ class TestConfigCommand:
 
     def test_set_alias_two_arg_form(self, capsys):
         from horavox import config
-        with mock.patch.object(sys, "argv", ["vox config", "alias.clock", "--start 9 --end 1 --freq 30"]):
+
+        with mock.patch.object(
+            sys, "argv", ["vox config", "alias.clock", "--start 9 --end 1 --freq 30"]
+        ):
             config.main()
         out = capsys.readouterr().out
         assert "alias.clock=--start 9 --end 1 --freq 30" in out
 
     def test_get_alias(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "alias.clock=--freq 30"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "alias.clock"]):
@@ -774,6 +797,7 @@ class TestConfigCommand:
 
     def test_get_alias_not_set(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "alias.bogus"]):
             config.main()
         out = capsys.readouterr().out
@@ -781,6 +805,7 @@ class TestConfigCommand:
 
     def test_unset_alias(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "alias.clock=--freq 30"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "--unset", "alias.clock"]):
@@ -790,6 +815,7 @@ class TestConfigCommand:
 
     def test_unset_alias_not_set(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "--unset", "alias.bogus"]):
             config.main()
         out = capsys.readouterr().out
@@ -797,6 +823,7 @@ class TestConfigCommand:
 
     def test_list_shows_aliases(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "lang=pl"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "alias.clock=--freq 30"]):
@@ -809,6 +836,7 @@ class TestConfigCommand:
 
     def test_set_deep_nested(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c=deep"]):
             config.main()
         out = capsys.readouterr().out
@@ -818,6 +846,7 @@ class TestConfigCommand:
 
     def test_get_deep_nested(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c=deep"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c"]):
@@ -827,6 +856,7 @@ class TestConfigCommand:
 
     def test_get_branch_node(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c=1"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "a.b.d=2"]):
@@ -839,6 +869,7 @@ class TestConfigCommand:
 
     def test_unset_deep_nested(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c=deep"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "--unset", "a.b.c"]):
@@ -850,6 +881,7 @@ class TestConfigCommand:
 
     def test_unset_cleans_empty_parents(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c=1"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "a.b.d=2"]):
@@ -862,6 +894,7 @@ class TestConfigCommand:
 
     def test_overwrite_nested_value(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b=old"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "a.b=new"]):
@@ -871,6 +904,7 @@ class TestConfigCommand:
 
     def test_set_through_existing_non_dict(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b=leaf"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c=deep"]):
@@ -880,6 +914,7 @@ class TestConfigCommand:
 
     def test_validate_setting_via_dot_path(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "settings.mode=invalid"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -888,6 +923,7 @@ class TestConfigCommand:
 
     def test_validate_unknown_setting_via_dot_path(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "settings.bogus=x"]):
             with pytest.raises(SystemExit):
                 config.main()
@@ -896,6 +932,7 @@ class TestConfigCommand:
 
     def test_list_shows_deep_nested(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "x.y.z=nested"]):
             config.main()
         with mock.patch.object(sys, "argv", ["vox config"]):
@@ -905,6 +942,7 @@ class TestConfigCommand:
 
     def test_two_arg_form_deep_nested(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b.c", "value with spaces"]):
             config.main()
         out = capsys.readouterr().out
@@ -912,6 +950,7 @@ class TestConfigCommand:
 
     def test_get_empty_branch(self, capsys):
         from horavox import config
+
         with mock.patch.object(sys, "argv", ["vox config", "a.b"]):
             config.main()
         out = capsys.readouterr().out
@@ -919,6 +958,7 @@ class TestConfigCommand:
 
     def test_dispatches_from_main(self):
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox", "config"]):
             with mock.patch("horavox.config.main") as m:
                 main()
@@ -928,6 +968,7 @@ class TestConfigCommand:
 class TestAliasDispatch:
     def setup_method(self):
         import tempfile
+
         self.tmpdir = tempfile.mkdtemp(prefix="horavox-test-alias-")
         self.config_path = os.path.join(self.tmpdir, "config.json")
         self._patch_path = mock.patch("horavox.config.CONFIG_PATH", self.config_path)
@@ -941,6 +982,7 @@ class TestAliasDispatch:
 
     def _write_config(self, data):
         import json
+
         os.makedirs(self.tmpdir, exist_ok=True)
         with open(self.config_path, "w") as f:
             json.dump(data, f)
@@ -953,6 +995,7 @@ class TestAliasDispatch:
             captured_argv.extend(sys.argv)
 
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox", "now", "--debug", "--time", "12:00"]):
             with mock.patch("horavox.now.main", side_effect=fake_main):
                 main()
@@ -966,6 +1009,7 @@ class TestAliasDispatch:
             captured_argv.extend(sys.argv)
 
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox", "now", "--lang", "pl"]):
             with mock.patch("horavox.now.main", side_effect=fake_main):
                 main()
@@ -982,6 +1026,7 @@ class TestAliasDispatch:
             captured_argv.extend(sys.argv)
 
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox", "now", "--debug"]):
             with mock.patch("horavox.now.main", side_effect=fake_main):
                 main()
@@ -995,6 +1040,7 @@ class TestAliasDispatch:
             captured_argv.extend(sys.argv)
 
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox", "now", "--debug"]):
             with mock.patch("horavox.now.main", side_effect=fake_main):
                 main()
@@ -1002,13 +1048,16 @@ class TestAliasDispatch:
         assert captured_argv == ["vox now", "--debug"]
 
     def test_service_strips_background_from_alias(self):
-        self._write_config({"settings": {}, "alias": {"clock": "--start 9 --end 1 --background --freq 30"}})
+        self._write_config(
+            {"settings": {}, "alias": {"clock": "--start 9 --end 1 --background --freq 30"}}
+        )
         captured_argv = []
 
         def fake_main():
             captured_argv.extend(sys.argv)
 
         from horavox.main import main
+
         with mock.patch.dict(os.environ, {"HORAVOX_SERVICE": "1"}):
             with mock.patch.object(sys, "argv", ["vox", "clock", "--lang", "pl"]):
                 with mock.patch("horavox.clock.main", side_effect=fake_main):
@@ -1025,6 +1074,7 @@ class TestAliasDispatch:
             captured_argv.extend(sys.argv)
 
         from horavox.main import main
+
         with mock.patch.dict(os.environ, {"HORAVOX_SERVICE": "1"}):
             with mock.patch.object(sys, "argv", ["vox", "clock", "--background", "--lang", "pl"]):
                 with mock.patch("horavox.clock.main", side_effect=fake_main):
@@ -1036,6 +1086,7 @@ class TestAliasDispatch:
 class TestApplyConfig:
     def setup_method(self):
         import tempfile
+
         self.tmpdir = tempfile.mkdtemp(prefix="horavox-test-cfg-")
         self.config_path = os.path.join(self.tmpdir, "config.json")
         self._patch_path = mock.patch("horavox.config.CONFIG_PATH", self.config_path)
@@ -1049,12 +1100,14 @@ class TestApplyConfig:
 
     def _write_config(self, data):
         import json
+
         os.makedirs(self.tmpdir, exist_ok=True)
         with open(self.config_path, "w") as f:
             json.dump(data, f)
 
     def test_applies_lang(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"lang": "pl"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now"]):
@@ -1063,6 +1116,7 @@ class TestApplyConfig:
 
     def test_applies_voice(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"voice": "test-voice"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now"]):
@@ -1071,6 +1125,7 @@ class TestApplyConfig:
 
     def test_applies_mode(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"mode": "modern"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now"]):
@@ -1079,6 +1134,7 @@ class TestApplyConfig:
 
     def test_cli_lang_overrides_config(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"lang": "pl"}, "alias": {}})
         args = argparse.Namespace(lang="en", voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now", "--lang", "en"]):
@@ -1087,6 +1143,7 @@ class TestApplyConfig:
 
     def test_cli_voice_overrides_config(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"voice": "config-voice"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice="cli-voice", mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now", "--voice", "cli-voice"]):
@@ -1095,6 +1152,7 @@ class TestApplyConfig:
 
     def test_cli_mode_overrides_config(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"mode": "modern"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now", "--mode", "classic"]):
@@ -1103,6 +1161,7 @@ class TestApplyConfig:
 
     def test_no_config_file(self):
         from horavox.config import apply_config
+
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now"]):
             apply_config(args)
@@ -1112,6 +1171,7 @@ class TestApplyConfig:
 
     def test_partial_config(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"lang": "pl"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now"]):
@@ -1122,6 +1182,7 @@ class TestApplyConfig:
 
     def test_applies_volume(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"volume": "30"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic", volume=100)
         with mock.patch.object(sys, "argv", ["vox", "now"]):
@@ -1130,6 +1191,7 @@ class TestApplyConfig:
 
     def test_cli_volume_overrides_config(self):
         from horavox.config import apply_config
+
         self._write_config({"settings": {"volume": "30"}, "alias": {}})
         args = argparse.Namespace(lang=None, voice=None, mode="classic", volume=80)
         with mock.patch.object(sys, "argv", ["vox", "now", "--volume", "80"]):
@@ -1138,6 +1200,7 @@ class TestApplyConfig:
 
     def test_migrates_flat_format(self):
         from horavox.config import apply_config
+
         self._write_config({"lang": "pl", "voice": "test"})
         args = argparse.Namespace(lang=None, voice=None, mode="classic")
         with mock.patch.object(sys, "argv", ["vox", "now"]):
@@ -1154,7 +1217,20 @@ class TestAtCommand:
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "9:00,12:00,18:00", "--debug", "--exit", "--time", "12:00", "--lang", "en"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "9:00,12:00,18:00",
+                "--repeat",
+                "everyday",
+                "--debug",
+                "--exit",
+                "--time",
+                "12:00",
+                "--lang",
+                "en",
+            ],
         ):
             with mock.patch.object(at, "speak") as mock_speak:
                 at.main()
@@ -1166,7 +1242,18 @@ class TestAtCommand:
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "9:00,12:00,18:00", "--debug", "--exit", "--time", "12:01"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "9:00,12:00,18:00",
+                "--repeat",
+                "everyday",
+                "--debug",
+                "--exit",
+                "--time",
+                "12:01",
+            ],
         ):
             with mock.patch.object(at, "speak") as mock_speak:
                 at.main()
@@ -1178,7 +1265,18 @@ class TestAtCommand:
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "9:00,18:00", "--debug", "--exit", "--time", "10:00"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "9:00,18:00",
+                "--repeat",
+                "everyday",
+                "--debug",
+                "--exit",
+                "--time",
+                "10:00",
+            ],
         ):
             at.main()
         out = capsys.readouterr().out
@@ -1189,7 +1287,20 @@ class TestAtCommand:
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "9:00,12:00", "--debug", "--exit", "--time", "9:00", "--lang", "en"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "9:00,12:00",
+                "--repeat",
+                "everyday",
+                "--debug",
+                "--exit",
+                "--time",
+                "9:00",
+                "--lang",
+                "en",
+            ],
         ):
             with mock.patch.object(at, "speak") as mock_speak:
                 at.main()
@@ -1199,7 +1310,20 @@ class TestAtCommand:
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "9:00,18:00", "--debug", "--exit", "--time", "18:00", "--lang", "en"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "9:00,18:00",
+                "--repeat",
+                "everyday",
+                "--debug",
+                "--exit",
+                "--time",
+                "18:00",
+                "--lang",
+                "en",
+            ],
         ):
             with mock.patch.object(at, "speak") as mock_speak:
                 at.main()
@@ -1219,7 +1343,22 @@ class TestAtCommand:
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "17:00", "--debug", "--exit", "--time", "17:00", "--mode", "modern", "--lang", "pl"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "17:00",
+                "--repeat",
+                "everyday",
+                "--debug",
+                "--exit",
+                "--time",
+                "17:00",
+                "--mode",
+                "modern",
+                "--lang",
+                "pl",
+            ],
         ):
             with mock.patch.object(at, "speak") as mock_speak:
                 at.main()
@@ -1285,14 +1424,50 @@ class TestAtCommand:
         assert args.times == "9:00,12:00"
         assert args.mode == "classic"
         assert args.volume == 100
+        assert args.repeat is None
+        assert args.date is None
+
+    def test_parse_args_with_date(self):
+        from horavox.at import parse_args
+
+        with mock.patch.object(sys, "argv", ["vox at", "9:00", "2026-05-10"]):
+            args = parse_args()
+        assert args.times == "9:00"
+        assert args.date == "2026-05-10"
+
+    def test_parse_args_with_repeat(self):
+        from horavox.at import parse_args
+
+        with mock.patch.object(sys, "argv", ["vox at", "12:55", "--repeat", "sunday,wednesday"]):
+            args = parse_args()
+        assert args.times == "12:55"
+        assert args.repeat == "sunday,wednesday"
 
     def test_parse_args_all_options(self):
         from horavox.at import parse_args
 
         with mock.patch.object(
-            sys, "argv",
-            ["vox at", "9:00", "--lang", "pl", "--voice", "test", "--mode", "modern",
-             "--time", "9:00", "--exit", "--background", "--verbose", "--volume", "50"]
+            sys,
+            "argv",
+            [
+                "vox at",
+                "9:00",
+                "--lang",
+                "pl",
+                "--voice",
+                "test",
+                "--mode",
+                "modern",
+                "--time",
+                "9:00",
+                "--exit",
+                "--background",
+                "--verbose",
+                "--volume",
+                "50",
+                "--repeat",
+                "everyday",
+            ],
         ):
             args = parse_args()
         assert args.times == "9:00"
@@ -1302,12 +1477,24 @@ class TestAtCommand:
         assert args.exit is True
         assert args.background is True
         assert args.volume == 50
+        assert args.repeat == "everyday"
 
-    def test_background_mode(self):
+    def test_background_mode_oneshot(self):
+        from horavox import at
+
+        with mock.patch.object(sys, "argv", ["vox at", "12:00", "--background", "--nosound"]):
+            with mock.patch.object(at, "Daemonize") as mock_daemon:
+                mock_instance = mock.MagicMock()
+                mock_daemon.return_value = mock_instance
+                at.main()
+                mock_daemon.assert_called_once()
+                mock_instance.start.assert_called_once()
+
+    def test_background_mode_repeat(self):
         from horavox import at
 
         with mock.patch.object(
-            sys, "argv", ["vox at", "12:00", "--background", "--nosound"]
+            sys, "argv", ["vox at", "12:00", "--repeat", "everyday", "--background", "--nosound"]
         ):
             with mock.patch.object(at, "Daemonize") as mock_daemon:
                 mock_instance = mock.MagicMock()
@@ -1316,12 +1503,12 @@ class TestAtCommand:
                 mock_daemon.assert_called_once()
                 mock_instance.start.assert_called_once()
 
-    def test_run_at_loop_fires(self):
-        """Test the main loop fires at a scheduled time then breaks."""
+    def test_run_at_repeat_loop_fires(self):
+        """Test the repeat loop fires at a scheduled time then breaks."""
         import datetime
 
         from horavox import at as at_mod
-        from horavox.at import run_at
+        from horavox.at import run_at_repeat
 
         core.configure(debug=True)
         lang_data, lang = core.load_language_data("en", "classic")
@@ -1330,6 +1517,7 @@ class TestAtCommand:
         args.time = None
         args.voice = None
         schedule = [(12, 0)]
+        repeat_days = set(range(7))
         now = datetime.datetime.now().replace(hour=12, minute=0, second=0, microsecond=0)
         time_offset = now - datetime.datetime.now()
         call_count = [0]
@@ -1345,10 +1533,136 @@ class TestAtCommand:
                     with mock.patch.object(at_mod, "play_beep"):
                         with mock.patch.object(at_mod.time, "sleep", side_effect=fake_sleep):
                             try:
-                                run_at(args, lang, lang_data, time_offset, schedule)
+                                run_at_repeat(
+                                    args, lang, lang_data, time_offset, schedule, repeat_days
+                                )
                             except KeyboardInterrupt:
                                 pass
         assert call_count[0] > 0
+
+    def test_parse_repeat_single_day(self):
+        from horavox.at import parse_repeat
+
+        assert parse_repeat("monday") == {0}
+
+    def test_parse_repeat_multiple_days(self):
+        from horavox.at import parse_repeat
+
+        assert parse_repeat("sunday,wednesday") == {2, 6}
+
+    def test_parse_repeat_everyday(self):
+        from horavox.at import parse_repeat
+
+        assert parse_repeat("everyday") == set(range(7))
+
+    def test_parse_repeat_weekdays(self):
+        from horavox.at import parse_repeat
+
+        assert parse_repeat("weekdays") == {0, 1, 2, 3, 4}
+
+    def test_parse_repeat_weekends(self):
+        from horavox.at import parse_repeat
+
+        assert parse_repeat("weekends") == {5, 6}
+
+    def test_parse_repeat_invalid(self):
+        from horavox.at import parse_repeat
+
+        with pytest.raises(SystemExit):
+            parse_repeat("bogus")
+
+    def test_parse_repeat_empty(self):
+        from horavox.at import parse_repeat
+
+        with pytest.raises(SystemExit):
+            parse_repeat("")
+
+    def test_parse_date_valid(self):
+        import datetime
+        from horavox.at import parse_date
+
+        assert parse_date("2026-05-10") == datetime.date(2026, 5, 10)
+
+    def test_parse_date_invalid(self):
+        from horavox.at import parse_date
+
+        with pytest.raises(SystemExit):
+            parse_date("not-a-date")
+
+    def test_date_and_repeat_error(self, capsys):
+        from horavox import at
+
+        with mock.patch.object(
+            sys, "argv", ["vox at", "12:00", "2026-05-10", "--repeat", "everyday", "--debug"]
+        ):
+            with pytest.raises(SystemExit) as exc:
+                at.main()
+            assert exc.value.code == 1
+        out = capsys.readouterr().out
+        assert "cannot be used together" in out
+
+    def test_oneshot_past_time_exits(self, capsys):
+        from horavox import at
+
+        with mock.patch.object(sys, "argv", ["vox at", "0:01", "2020-01-01", "--debug"]):
+            at.main()
+        out = capsys.readouterr().out
+        assert "passed" in out
+
+    def test_next_repeat_target(self):
+        import datetime
+        from horavox.at import _next_repeat_target
+
+        monday_noon = datetime.datetime(2026, 5, 4, 12, 0, 0)
+        schedule = [(14, 0)]
+        repeat_days = {0}  # Monday only
+        target = _next_repeat_target(monday_noon, schedule, repeat_days)
+        assert target == datetime.datetime(2026, 5, 4, 14, 0)
+
+    def test_next_repeat_target_skips_day(self):
+        import datetime
+        from horavox.at import _next_repeat_target
+
+        tuesday_noon = datetime.datetime(2026, 5, 5, 12, 0, 0)
+        schedule = [(10, 0)]
+        repeat_days = {0}  # Monday only
+        target = _next_repeat_target(tuesday_noon, schedule, repeat_days)
+        assert target.weekday() == 0
+        assert target.date() == datetime.date(2026, 5, 11)
+
+    def test_repeat_wrong_day_no_speak(self, capsys):
+        """--exit on a day not in repeat_days should not speak."""
+        import datetime
+        from horavox import at
+
+        now = datetime.datetime(2026, 5, 5, 12, 0, 0)  # Tuesday
+        offset = now - datetime.datetime.now()
+        h, m = now.hour, now.minute
+
+        with mock.patch.object(
+            sys,
+            "argv",
+            [
+                "vox at",
+                f"{h}:{m:02d}",
+                "--repeat",
+                "monday",
+                "--debug",
+                "--exit",
+                "--time",
+                f"{h}:{m:02d}",
+            ],
+        ):
+            with mock.patch("horavox.at.datetime") as mock_dt:
+                mock_dt.datetime.now.return_value = now
+                mock_dt.datetime.combine = datetime.datetime.combine
+                mock_dt.datetime.strptime = datetime.datetime.strptime
+                mock_dt.timedelta = datetime.timedelta
+                mock_dt.time = datetime.time
+                mock_dt.date = datetime.date
+                with mock.patch.object(at, "speak") as mock_speak:
+                    at.main()
+                    mock_speak.assert_not_called()
 
     def test_dispatches_from_main(self):
         from horavox.main import main

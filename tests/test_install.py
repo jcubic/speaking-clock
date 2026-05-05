@@ -26,10 +26,12 @@ class TestRegistry:
 
     def test_list_empty_no_file(self):
         from horavox.registry import list_instances
+
         assert list_instances() == []
 
     def test_add_and_list(self):
         from horavox.registry import add_instance, list_instances
+
         entry = add_instance("clock --lang pl --freq 30")
         assert entry["command"] == "clock --lang pl --freq 30"
         assert len(entry["id"]) == 6
@@ -40,12 +42,14 @@ class TestRegistry:
 
     def test_add_multiple(self):
         from horavox.registry import add_instance, list_instances
+
         add_instance("clock --lang pl")
         add_instance("clock --lang en")
         assert len(list_instances()) == 2
 
     def test_remove_instance(self):
         from horavox.registry import add_instance, list_instances, remove_instance
+
         e1 = add_instance("clock --lang pl")
         e2 = add_instance("clock --lang en")
         assert remove_instance(e1["id"]) is True
@@ -55,10 +59,12 @@ class TestRegistry:
 
     def test_remove_nonexistent(self):
         from horavox.registry import remove_instance
+
         assert remove_instance("zzzzzz") is False
 
     def test_remove_all(self):
         from horavox.registry import add_instance, list_instances, remove_all
+
         add_instance("clock --lang pl")
         add_instance("clock --lang en")
         count = remove_all()
@@ -67,10 +73,12 @@ class TestRegistry:
 
     def test_delete_all_empty(self):
         from horavox.registry import remove_all
+
         assert remove_all() == 0
 
     def test_get_instance(self):
         from horavox.registry import add_instance, get_instance
+
         entry = add_instance("clock --lang pl")
         found = get_instance(entry["id"])
         assert found is not None
@@ -78,10 +86,12 @@ class TestRegistry:
 
     def test_get_instance_not_found(self):
         from horavox.registry import get_instance
+
         assert get_instance("zzzzzz") is None
 
     def test_persistence(self):
         from horavox.registry import add_instance
+
         add_instance("clock --lang pl")
         assert os.path.exists(self.registry_path)
         with open(self.registry_path, "r") as f:
@@ -90,6 +100,7 @@ class TestRegistry:
 
     def test_unique_ids(self):
         from horavox.registry import add_instance
+
         ids = set()
         for _ in range(20):
             entry = add_instance("clock")
@@ -103,6 +114,7 @@ class TestRegistry:
 class TestServiceAdd:
     def test_add_help(self, capsys):
         from horavox.service import _parse_add_args
+
         with mock.patch.object(sys, "argv", ["vox service add", "--help"]):
             with pytest.raises(SystemExit) as exc:
                 _parse_add_args()
@@ -110,10 +122,15 @@ class TestServiceAdd:
 
     def test_add_new_registers_and_starts(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = False
         with mock.patch.object(sys, "argv", ["vox service add", "clock --lang pl --freq 30"]):
-            with mock.patch.object(service, "add_instance", return_value={"id": "aaa111", "command": "clock --lang pl --freq 30"}):
+            with mock.patch.object(
+                service,
+                "add_instance",
+                return_value={"id": "aaa111", "command": "clock --lang pl --freq 30"},
+            ):
                 with mock.patch.object(service, "get_platform", return_value=platform):
                     service._cmd_add()
         out = capsys.readouterr().out
@@ -124,11 +141,14 @@ class TestServiceAdd:
 
     def test_add_existing_running_reloads(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = True
         platform.is_running.return_value = True
         with mock.patch.object(sys, "argv", ["vox service add", "clock --lang en"]):
-            with mock.patch.object(service, "add_instance", return_value={"id": "bbb222", "command": "clock --lang en"}):
+            with mock.patch.object(
+                service, "add_instance", return_value={"id": "bbb222", "command": "clock --lang en"}
+            ):
                 with mock.patch.object(service, "get_platform", return_value=platform):
                     service._cmd_add()
         out = capsys.readouterr().out
@@ -137,11 +157,14 @@ class TestServiceAdd:
 
     def test_add_registered_but_stopped_starts(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = True
         platform.is_running.return_value = False
         with mock.patch.object(sys, "argv", ["vox service add", "clock --lang en"]):
-            with mock.patch.object(service, "add_instance", return_value={"id": "ccc333", "command": "clock --lang en"}):
+            with mock.patch.object(
+                service, "add_instance", return_value={"id": "ccc333", "command": "clock --lang en"}
+            ):
                 with mock.patch.object(service, "get_platform", return_value=platform):
                     service._cmd_add()
         out = capsys.readouterr().out
@@ -150,6 +173,7 @@ class TestServiceAdd:
 
     def test_strips_background_flag(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = False
         captured_command = []
@@ -172,6 +196,7 @@ class TestServiceAdd:
 class TestServiceDelete:
     def test_delete_help(self, capsys):
         from horavox.service import _parse_delete_args
+
         with mock.patch.object(sys, "argv", ["vox service delete", "--help"]):
             with pytest.raises(SystemExit) as exc:
                 _parse_delete_args()
@@ -179,6 +204,7 @@ class TestServiceDelete:
 
     def test_delete_by_id(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_running.return_value = True
         platform.is_registered.return_value = True
@@ -193,6 +219,7 @@ class TestServiceDelete:
 
     def test_delete_by_id_not_found(self, capsys):
         from horavox import service
+
         with mock.patch.object(sys, "argv", ["vox service delete", "zzzzzz"]):
             with mock.patch.object(service, "remove_instance", return_value=False):
                 with pytest.raises(SystemExit) as exc:
@@ -203,6 +230,7 @@ class TestServiceDelete:
 
     def test_delete_last_unregisters(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_running.return_value = True
         platform.is_registered.return_value = True
@@ -217,6 +245,7 @@ class TestServiceDelete:
 
     def test_delete_all(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = True
         with mock.patch.object(sys, "argv", ["vox service delete", "--all"]):
@@ -230,6 +259,7 @@ class TestServiceDelete:
 
     def test_delete_all_singular(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = True
         with mock.patch.object(sys, "argv", ["vox service delete", "--all"]):
@@ -241,6 +271,7 @@ class TestServiceDelete:
 
     def test_delete_all_empty(self, capsys):
         from horavox import service
+
         with mock.patch.object(sys, "argv", ["vox service delete", "--all"]):
             with mock.patch.object(service, "remove_all", return_value=0):
                 service._cmd_delete()
@@ -249,6 +280,7 @@ class TestServiceDelete:
 
     def test_delete_no_args_empty(self, capsys):
         from horavox import service
+
         with mock.patch.object(sys, "argv", ["vox service delete"]):
             with mock.patch.object(service, "list_instances", return_value=[]):
                 service._cmd_delete()
@@ -257,6 +289,7 @@ class TestServiceDelete:
 
     def test_delete_interactive_select(self, capsys):
         from horavox import service
+
         instances = [
             {"id": "aaa111", "command": "clock --lang pl"},
             {"id": "bbb222", "command": "clock --lang en"},
@@ -276,6 +309,7 @@ class TestServiceDelete:
 
     def test_delete_interactive_cancel(self, capsys):
         from horavox import service
+
         instances = [
             {"id": "aaa111", "command": "clock --lang pl"},
         ]
@@ -288,6 +322,7 @@ class TestServiceDelete:
 
     def test_delete_interactive_keyboard_interrupt(self):
         from horavox import service
+
         instances = [
             {"id": "aaa111", "command": "clock --lang pl"},
         ]
@@ -298,6 +333,7 @@ class TestServiceDelete:
 
     def test_parse_args_id(self):
         from horavox.service import _parse_delete_args
+
         with mock.patch.object(sys, "argv", ["vox service delete", "abc123"]):
             args = _parse_delete_args()
         assert args.id == "abc123"
@@ -305,6 +341,7 @@ class TestServiceDelete:
 
     def test_parse_args_all(self):
         from horavox.service import _parse_delete_args
+
         with mock.patch.object(sys, "argv", ["vox service delete", "--all"]):
             args = _parse_delete_args()
         assert args.remove_all is True
@@ -316,6 +353,7 @@ class TestServiceDelete:
 class TestServiceList:
     def test_list_empty(self, capsys):
         from horavox import service
+
         with mock.patch.object(service, "list_instances", return_value=[]):
             service._cmd_list()
         out = capsys.readouterr().out
@@ -323,9 +361,18 @@ class TestServiceList:
 
     def test_list_with_instances(self, capsys):
         from horavox import service
+
         instances = [
-            {"id": "abc123", "command": "clock --lang pl", "installed_at": "2026-05-05T10:00:00+00:00"},
-            {"id": "def456", "command": "clock --lang en", "installed_at": "2026-05-05T11:00:00+00:00"},
+            {
+                "id": "abc123",
+                "command": "clock --lang pl",
+                "installed_at": "2026-05-05T10:00:00+00:00",
+            },
+            {
+                "id": "def456",
+                "command": "clock --lang en",
+                "installed_at": "2026-05-05T11:00:00+00:00",
+            },
         ]
         with mock.patch.object(service, "list_instances", return_value=instances):
             service._cmd_list()
@@ -342,6 +389,7 @@ class TestServiceList:
 class TestServiceStart:
     def test_start_no_instances(self, capsys):
         from horavox import service
+
         with mock.patch.object(service, "list_instances", return_value=[]):
             with pytest.raises(SystemExit) as exc:
                 service._cmd_start()
@@ -351,6 +399,7 @@ class TestServiceStart:
 
     def test_start_already_running(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = True
         platform.is_running.return_value = True
@@ -362,6 +411,7 @@ class TestServiceStart:
 
     def test_start_registers_if_needed(self, capsys):
         from horavox import service
+
         platform = mock.MagicMock()
         platform.is_registered.return_value = False
         platform.is_running.return_value = False
@@ -378,6 +428,7 @@ class TestServiceStart:
 class TestServiceDispatch:
     def test_help_no_args(self, capsys):
         from horavox import service
+
         with mock.patch.object(sys, "argv", ["vox service"]):
             service._main()
         out = capsys.readouterr().out
@@ -388,6 +439,7 @@ class TestServiceDispatch:
 
     def test_help_flag(self, capsys):
         from horavox import service
+
         with mock.patch.object(sys, "argv", ["vox service", "--help"]):
             service._main()
         out = capsys.readouterr().out
@@ -395,6 +447,7 @@ class TestServiceDispatch:
 
     def test_unknown_subcommand(self, capsys):
         from horavox import service
+
         with pytest.raises(SystemExit) as exc:
             with mock.patch.object(sys, "argv", ["vox service", "bogus"]):
                 service._main()
@@ -404,11 +457,13 @@ class TestServiceDispatch:
 
     def test_keyboard_interrupt(self):
         from horavox import service
+
         with mock.patch.object(service, "_main", side_effect=KeyboardInterrupt):
             service.main()
 
     def test_exception_logs_error(self):
         from horavox import service
+
         with mock.patch.object(service, "_main", side_effect=RuntimeError("boom")):
             with mock.patch.object(service, "log_error") as mock_log:
                 with pytest.raises(RuntimeError):
@@ -422,6 +477,7 @@ class TestServiceDispatch:
 class TestServiceManager:
     def test_reconcile_starts_new(self):
         from horavox.service import _reconcile
+
         children = {}
         instances = [{"id": "aaa", "command": "clock --lang pl"}]
         with mock.patch("horavox.service.list_instances", return_value=instances):
@@ -434,6 +490,7 @@ class TestServiceManager:
 
     def test_reconcile_stops_removed(self):
         from horavox.service import _reconcile
+
         proc = mock.MagicMock()
         proc.poll.return_value = None
         children = {"old_id": proc}
@@ -445,6 +502,7 @@ class TestServiceManager:
 
     def test_reconcile_keeps_existing(self):
         from horavox.service import _reconcile
+
         proc = mock.MagicMock()
         children = {"aaa": proc}
         instances = [{"id": "aaa", "command": "clock --lang pl"}]
@@ -455,6 +513,7 @@ class TestServiceManager:
 
     def test_stop_child_terminate(self):
         from horavox.service import _stop_child
+
         proc = mock.MagicMock()
         proc.poll.return_value = None
         proc.wait.return_value = 0
@@ -467,6 +526,7 @@ class TestServiceManager:
         import subprocess
 
         from horavox.service import _stop_child
+
         proc = mock.MagicMock()
         proc.poll.return_value = None
         proc.wait.side_effect = subprocess.TimeoutExpired("vox", 10)
@@ -476,6 +536,7 @@ class TestServiceManager:
 
     def test_stop_child_already_dead(self):
         from horavox.service import _stop_child
+
         proc = mock.MagicMock()
         proc.poll.return_value = 0
         children = {"aaa": proc}
@@ -484,11 +545,13 @@ class TestServiceManager:
 
     def test_stop_child_missing_id(self):
         from horavox.service import _stop_child
+
         children = {}
         _stop_child(children, "nonexistent")
 
     def test_stop_all(self):
         from horavox.service import _stop_all
+
         proc1 = mock.MagicMock()
         proc1.poll.return_value = None
         proc1.wait.return_value = 0
@@ -503,6 +566,7 @@ class TestServiceManager:
 
     def test_check_children_restarts_exited(self):
         from horavox.service import _check_children
+
         proc = mock.MagicMock()
         proc.poll.return_value = 1
         children = {"aaa": proc}
@@ -517,6 +581,7 @@ class TestServiceManager:
 
     def test_check_children_removes_orphan(self):
         from horavox.service import _check_children
+
         proc = mock.MagicMock()
         proc.poll.return_value = 1
         children = {"aaa": proc}
@@ -527,6 +592,7 @@ class TestServiceManager:
 
     def test_check_children_ignores_running(self):
         from horavox.service import _check_children
+
         proc = mock.MagicMock()
         proc.poll.return_value = None
         children = {"aaa": proc}
@@ -538,6 +604,7 @@ class TestServiceManager:
 
     def test_start_child_oserror(self):
         from horavox.service import _start_child
+
         children = {}
         with mock.patch("horavox.service.subprocess.Popen", side_effect=OSError("no such file")):
             with mock.patch("horavox.service.log_to_file") as mock_log:
@@ -552,6 +619,7 @@ class TestServiceManager:
 class TestMainDispatcherService:
     def test_dispatches_to_service(self):
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox", "service"]):
             with mock.patch("horavox.service.main") as m:
                 main()
@@ -559,6 +627,7 @@ class TestMainDispatcherService:
 
     def test_help_shows_service(self, capsys):
         from horavox.main import main
+
         with mock.patch.object(sys, "argv", ["vox"]):
             main()
         out = capsys.readouterr().out
@@ -573,6 +642,7 @@ class TestPlatformDetection:
     def test_linux(self):
         with mock.patch("sys.platform", "linux"):
             from horavox.platforms import get_platform
+
             plat = get_platform()
             assert hasattr(plat, "register")
             assert hasattr(plat, "unregister")
@@ -586,4 +656,5 @@ class TestPlatformDetection:
         with mock.patch("sys.platform", "freebsd"):
             with pytest.raises(RuntimeError, match="Unsupported platform"):
                 from horavox import platforms
+
                 platforms.get_platform()

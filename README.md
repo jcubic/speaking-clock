@@ -68,7 +68,7 @@ vox <command> [options]
 | `vox now` | Speak the current time once |
 | `vox stop` | Stop running background instances |
 | `vox voice` | Manage Piper voice models |
-| `vox at` | Speak the time at specified times |
+| `vox at` | Speak the time at specified times (one-shot or recurring) |
 | `vox config` | Get or set default configuration |
 | `vox service` | Manage autostart service (install/remove/list/start) |
 
@@ -137,22 +137,31 @@ Installed voices are marked with `[*]`. Downloads show a progress bar below the 
 
 ### vox at
 
-Speak the time at specific times of day:
+Speak the time at specific times — one-shot or recurring like Google Calendar:
 
 ```bash
-vox at 9:00,12:00,18:00                # announce at 9am, noon, and 6pm
-vox at 8:30,17:00 --lang pl            # Polish announcements
-vox at 9:00,12:00 --mode modern        # digital style
-vox at 9:00,12:00 --background         # run as a daemon
-vox at 9:00,12:00 --volume 30          # quiet
+# One-shot (waits, speaks, exits)
+vox at 12:55                                  # speak at 12:55 today
+vox at 12:55 2026-05-10                       # speak at 12:55 on a specific date
+vox at 9:00,12:00,18:00                       # multiple times today
+
+# Recurring (persistent loop)
+vox at 12:55 --repeat everyday                # every day at 12:55
+vox at 12:55 --repeat sunday,wednesday        # specific days of the week
+vox at 9:00,18:00 --repeat weekdays           # weekdays only
+vox at 8:00 --repeat weekends --lang pl       # Polish, weekends only
+
+# Common flags
+vox at 9:00 --repeat everyday --background    # run as a daemon
+vox at 9:00 --repeat everyday --volume 30     # quiet
 ```
 
-Times are comma-separated in `HH:MM` format. Duplicates are ignored, order doesn't matter. Supports the same `--lang`, `--voice`, `--mode`, `--volume`, `--background`, and `--debug` flags as `vox clock`.
+Times are comma-separated in `HH:MM` format. Day keywords: `monday`–`sunday`, `everyday`, `weekdays`, `weekends`. Without `--repeat`, the process exits after the last scheduled time passes. Supports the same `--lang`, `--voice`, `--mode`, `--volume`, `--background`, and `--debug` flags as `vox clock`.
 
 Works with `vox service add` too:
 
 ```bash
-vox service add "at 9:00,12:00,18:00 --lang en --volume 50"
+vox service add "at 12:55 --repeat sunday,wednesday --volume 50"
 ```
 
 ### vox config

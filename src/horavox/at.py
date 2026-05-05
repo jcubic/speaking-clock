@@ -1,4 +1,4 @@
-"""vox at — speak the time at specified times."""
+"""vox at — speak the time at specified times, optionally recurring."""
 
 import argparse
 import datetime
@@ -31,6 +31,22 @@ from horavox.core import (
     speak,
 )
 
+DAY_NAMES = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
+
+DAY_GROUPS = {
+    "everyday": set(range(7)),
+    "weekdays": {0, 1, 2, 3, 4},
+    "weekends": {5, 6},
+}
+
 
 def parse_times(value):
     """Parse comma-separated HH:MM times into sorted list of (hour, minute)."""
@@ -42,9 +58,39 @@ def parse_times(value):
         h, m = parse_time_arg(part)
         times.add((h, m))
     if not times:
-        print("Error: --times requires at least one HH:MM value.")
+        print("Error: times requires at least one HH:MM value.")
         sys.exit(1)
     return sorted(times)
+
+
+def parse_repeat(value):
+    """Parse --repeat value into a set of weekday numbers (0=Monday..6=Sunday)."""
+    days = set()
+    for part in value.split(","):
+        part = part.strip().lower()
+        if not part:
+            continue
+        if part in DAY_GROUPS:
+            days |= DAY_GROUPS[part]
+        elif part in DAY_NAMES:
+            days.add(DAY_NAMES[part])
+        else:
+            valid = sorted(list(DAY_NAMES.keys()) + list(DAY_GROUPS.keys()))
+            print(f"Error: unknown day '{part}'. Valid: {', '.join(valid)}")
+            sys.exit(1)
+    if not days:
+        print("Error: --repeat requires at least one day.")
+        sys.exit(1)
+    return days
+
+
+def parse_date(value):
+    """Parse a YYYY-MM-DD date string."""
+    try:
+        return datetime.datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        print(f"Error: invalid date '{value}'. Use YYYY-MM-DD format.")
+        sys.exit(1)
 
 
 def parse_args():
@@ -56,7 +102,20 @@ def parse_args():
     parser.add_argument(
         "times",
         type=str,
-        help="Comma-separated times to announce (e.g. 9:00,12:00,18:00)",
+        help="Comma-separated times to announce (e.g. 12:55 or 9:00,12:00,18:00)",
+    )
+    parser.add_argument(
+        "date",
+        nargs="?",
+        default=None,
+        help="Date to announce on (YYYY-MM-DD, default: today)",
+    )
+    parser.add_argument(
+        "--repeat",
+        type=str,
+        default=None,
+        metavar="DAYS",
+        help="Recurring schedule: day names (monday,friday), everyday, weekdays, weekends",
     )
     parser.add_argument(
         "--lang",
@@ -118,79 +177,162 @@ def parse_args():
     return parser.parse_args()
 
 
-def run_at(args, lang, lang_data, time_offset, schedule):
-    """Main loop. Fires at each scheduled (hour, minute)."""
+def _load_voice(args, lang):
+    if core.NOSOUND:
+        return None
+    voice_path = resolve_voice(args.voice, lang)
+    voice_name = os.path.basename(voice_path).replace(".onnx", "")
+    log(f"Loading voice: {voice_name}")
+    from piper import PiperVoice
+
+    return PiperVoice.load(voice_path)
+
+
+def run_at_once(args, lang, lang_data, time_offset, schedule, target_date):
+    """One-shot mode: wait for the next matching time on target_date, speak, exit."""
 
     def get_now():
         return datetime.datetime.now() + time_offset
 
-    if core.NOSOUND:
-        voice = None
-    else:
-        voice_path = resolve_voice(args.voice, lang)
-        voice_name = os.path.basename(voice_path).replace(".onnx", "")
-        log(f"Loading voice: {voice_name}")
-        from piper import PiperVoice
+    voice = _load_voice(args, lang)
 
-        voice = PiperVoice.load(voice_path)
+    now = get_now()
+    targets = []
+    for h, m in schedule:
+        t = datetime.datetime.combine(target_date, datetime.time(h, m))
+        if t > now - datetime.timedelta(seconds=5):
+            targets.append(t)
 
-    ANNOUNCE_OFFSET = 3
-
-    def next_target(now):
-        """Return the next scheduled datetime."""
-        today = now.date()
-        for h, m in schedule:
-            candidate = datetime.datetime.combine(today, datetime.time(h, m))
-            if candidate > now - datetime.timedelta(seconds=5):
-                return candidate
-        first_h, first_m = schedule[0]
-        return datetime.datetime.combine(
-            today + datetime.timedelta(days=1),
-            datetime.time(first_h, first_m),
-        )
-
-    if args.exit:
-        now = get_now()
-        frac_sec = now.second + now.microsecond / 1_000_000
-        if (now.hour, now.minute) in schedule and frac_sec < 5:
-            text = get_spoken_time(lang_data, now.hour, now.minute)
-            speak(voice, text, beep_count=beep_count_for_minute(now.minute))
-        else:
-            times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
-            log(f"  Time: {now.strftime('%H:%M:%S')} - not at a scheduled time ({times_str}).")
+    if not targets:
+        times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
+        log(f"All scheduled times ({times_str}) have passed for {target_date}.")
         return
 
+    target = targets[0]
     times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
-    log(f"\nHoraVox started (lang={lang})")
-    log(f"  Schedule: {times_str}")
+    log(f"\nHoraVox waiting (lang={lang})")
+    log(f"  Schedule: {times_str} on {target_date}")
     if args.time:
         log(f"  Simulated start time: {args.time}")
     log("\n  (Ctrl+C to stop)")
 
+    ANNOUNCE_OFFSET = 3
+    TICK = 1.0
+    last_announced = None
+    announced_count = 0
+
+    while announced_count < len(targets):
+        now = get_now()
+        target = targets[announced_count]
+        seconds_to_target = (target - now).total_seconds()
+        in_window = -5 <= seconds_to_target <= ANNOUNCE_OFFSET + 0.5
+
+        if in_window and target != last_announced:
+            last_announced = target
+            text = get_spoken_time(lang_data, target.hour, target.minute)
+            prepare_speech(voice, text)
+            remaining = (target - get_now()).total_seconds()
+            if remaining > 0:
+                time.sleep(remaining)
+            for _ in range(beep_count_for_minute(target.minute)):
+                play_beep()
+            play_speech()
+            announced_count += 1
+            continue
+
+        if seconds_to_target < -5:
+            announced_count += 1
+            continue
+
+        time.sleep(TICK)
+
+
+def run_at_repeat(args, lang, lang_data, time_offset, schedule, repeat_days):
+    """Recurring mode: loop forever, fire on matching days."""
+
+    def get_now():
+        return datetime.datetime.now() + time_offset
+
+    voice = _load_voice(args, lang)
+
+    if args.exit:
+        now = get_now()
+        weekday = now.weekday()
+        frac_sec = now.second + now.microsecond / 1_000_000
+        if weekday in repeat_days and (now.hour, now.minute) in schedule and frac_sec < 5:
+            text = get_spoken_time(lang_data, now.hour, now.minute)
+            speak(voice, text, beep_count=beep_count_for_minute(now.minute))
+        else:
+            times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
+            days_str = _format_days(repeat_days)
+            log(
+                f"  Time: {now.strftime('%H:%M:%S')} ({_weekday_name(weekday)}) - not at a scheduled time ({times_str} on {days_str})."
+            )
+        return
+
+    times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
+    days_str = _format_days(repeat_days)
+    log(f"\nHoraVox started (lang={lang})")
+    log(f"  Schedule: {times_str}")
+    log(f"  Repeat: {days_str}")
+    if args.time:
+        log(f"  Simulated start time: {args.time}")
+    log("\n  (Ctrl+C to stop)")
+
+    ANNOUNCE_OFFSET = 3
     TICK = 1.0
     last_announced = None
 
     while True:
         now = get_now()
-        target = next_target(now)
+        target = _next_repeat_target(now, schedule, repeat_days)
         seconds_to_target = (target - now).total_seconds()
-
         in_window = -5 <= seconds_to_target <= ANNOUNCE_OFFSET + 0.5
 
         if in_window and target != last_announced:
             last_announced = target
-            target_hour, target_minute = target.hour, target.minute
-            text = get_spoken_time(lang_data, target_hour, target_minute)
+            text = get_spoken_time(lang_data, target.hour, target.minute)
             prepare_speech(voice, text)
             remaining = (target - get_now()).total_seconds()
             if remaining > 0:
                 time.sleep(remaining)
-            for _ in range(beep_count_for_minute(target_minute)):
+            for _ in range(beep_count_for_minute(target.minute)):
                 play_beep()
             play_speech()
             continue
 
         time.sleep(TICK)
+
+
+def _next_repeat_target(now, schedule, repeat_days):
+    """Return the next datetime matching schedule + repeat_days."""
+    for day_offset in range(8):
+        candidate_date = now.date() + datetime.timedelta(days=day_offset)
+        if candidate_date.weekday() not in repeat_days:
+            continue
+        for h, m in schedule:
+            candidate = datetime.datetime.combine(candidate_date, datetime.time(h, m))
+            if candidate > now - datetime.timedelta(seconds=5):
+                return candidate
+    return datetime.datetime.combine(
+        now.date() + datetime.timedelta(days=7),
+        datetime.time(*schedule[0]),
+    )
+
+
+def _weekday_name(weekday_num):
+    names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    return names[weekday_num]
+
+
+def _format_days(repeat_days):
+    if repeat_days == set(range(7)):
+        return "everyday"
+    if repeat_days == {0, 1, 2, 3, 4}:
+        return "weekdays"
+    if repeat_days == {5, 6}:
+        return "weekends"
+    return ", ".join(_weekday_name(d) for d in sorted(repeat_days))
 
 
 def main():
@@ -206,6 +348,7 @@ def main():
 def _main():
     args = parse_args()
     from horavox.config import apply_config
+
     apply_config(args)
     configure(
         verbose=args.verbose,
@@ -219,6 +362,10 @@ def _main():
 
     schedule = parse_times(args.times)
 
+    if args.date and args.repeat:
+        print("Error: --repeat and a specific date cannot be used together.")
+        sys.exit(1)
+
     if args.time:
         h, m = parse_time_arg(args.time)
         real_now = datetime.datetime.now()
@@ -227,38 +374,86 @@ def _main():
     else:
         time_offset = datetime.timedelta(0)
 
-    if args.background:
-        if not core.NOSOUND:
-            voice_path = resolve_voice(args.voice, lang)
-            if not os.path.exists(voice_path):
-                return
+    if args.repeat:
+        repeat_days = parse_repeat(args.repeat)
 
-        ensure_user_dirs()
+        if args.background:
+            if not core.NOSOUND:
+                voice_path = resolve_voice(args.voice, lang)
+                if not os.path.exists(voice_path):
+                    return
 
-        session_id = str(uuid.uuid4())
-        pid_file = os.path.join(SESSIONS_DIR, f"{session_id}.pid")
+            ensure_user_dirs()
+            session_id = str(uuid.uuid4())
+            pid_file = os.path.join(SESSIONS_DIR, f"{session_id}.pid")
 
-        def daemon_action():
-            create_session(os.getpid(), session_id)
-            try:
-                run_at(args, lang, lang_data, time_offset, schedule)
-            except Exception:
-                log_error()
-                raise
-            finally:
-                remove_session(session_id)
+            def daemon_action_repeat():
+                create_session(os.getpid(), session_id)
+                try:
+                    run_at_repeat(args, lang, lang_data, time_offset, schedule, repeat_days)
+                except Exception:
+                    log_error()
+                    raise
+                finally:
+                    remove_session(session_id)
 
-        daemon = Daemonize(
-            app="horavox",
-            pid=pid_file,
-            action=daemon_action,
-            chdir=PKG_DIR,
-        )
-        log("Starting HoraVox in the background...")
-        daemon.start()
-        return
+            daemon = Daemonize(
+                app="horavox",
+                pid=pid_file,
+                action=daemon_action_repeat,
+                chdir=PKG_DIR,
+            )
+            log("Starting HoraVox in the background...")
+            daemon.start()
+            return
 
-    run_at(args, lang, lang_data, time_offset, schedule)
+        run_at_repeat(args, lang, lang_data, time_offset, schedule, repeat_days)
+    else:
+        target_date = parse_date(args.date) if args.date else datetime.date.today()
+
+        if args.exit:
+            now = datetime.datetime.now() + time_offset
+            frac_sec = now.second + now.microsecond / 1_000_000
+            if now.date() == target_date and (now.hour, now.minute) in schedule and frac_sec < 5:
+                voice = _load_voice(args, lang)
+                text = get_spoken_time(lang_data, now.hour, now.minute)
+                speak(voice, text, beep_count=beep_count_for_minute(now.minute))
+            else:
+                times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
+                log(f"  Time: {now.strftime('%H:%M:%S')} - not at a scheduled time ({times_str}).")
+            return
+
+        if args.background:
+            if not core.NOSOUND:
+                voice_path = resolve_voice(args.voice, lang)
+                if not os.path.exists(voice_path):
+                    return
+
+            ensure_user_dirs()
+            session_id = str(uuid.uuid4())
+            pid_file = os.path.join(SESSIONS_DIR, f"{session_id}.pid")
+
+            def daemon_action_once():
+                create_session(os.getpid(), session_id)
+                try:
+                    run_at_once(args, lang, lang_data, time_offset, schedule, target_date)
+                except Exception:
+                    log_error()
+                    raise
+                finally:
+                    remove_session(session_id)
+
+            daemon = Daemonize(
+                app="horavox",
+                pid=pid_file,
+                action=daemon_action_once,
+                chdir=PKG_DIR,
+            )
+            log("Starting HoraVox in the background...")
+            daemon.start()
+            return
+
+        run_at_once(args, lang, lang_data, time_offset, schedule, target_date)
 
 
 if __name__ == "__main__":

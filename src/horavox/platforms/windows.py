@@ -10,7 +10,11 @@ from horavox.core import USER_DIR
 
 STARTUP_DIR = os.path.join(
     os.environ.get("APPDATA", ""),
-    "Microsoft", "Windows", "Start Menu", "Programs", "Startup",
+    "Microsoft",
+    "Windows",
+    "Start Menu",
+    "Programs",
+    "Startup",
 )
 SHORTCUT_NAME = "horavox.vbs"
 SHORTCUT_PATH = os.path.join(STARTUP_DIR, SHORTCUT_NAME)

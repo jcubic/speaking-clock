@@ -158,18 +158,41 @@ vox install "at 9:00,12:00,18:00 --lang en --volume 50"
 
 ### vox config
 
-Set default values for `--lang`, `--voice`, and `--mode` so you don't have to pass them every time:
+Set default values and aliases so you don't have to repeat common flags:
 
 ```bash
 vox config lang=pl                     # default language
 vox config voice=pl_PL-mc_speech-medium # default voice
 vox config mode=classic                # default time style
-vox config                             # list all settings
+vox config volume=30                   # default volume (0-100)
+vox config                             # list all settings and aliases
 vox config lang                        # show a single setting
 vox config --unset voice               # remove a setting
 ```
 
-Defaults are stored in `~/.horavox/config.json` and apply to `vox clock`, `vox now`, `vox at`, and `vox voice`. Command-line flags always override config values.
+Settings are stored in `~/.horavox/config.json` and apply to `vox clock`, `vox now`, `vox at`, and `vox voice`. Command-line flags always override config values.
+
+#### Aliases
+
+Aliases work like git aliases -- define default arguments for any subcommand:
+
+```bash
+vox config alias.clock '--start 9 --end 1 --background --freq 30 --volume 30'
+vox config alias.now '--mode modern'
+```
+
+Now `vox clock` expands to `vox clock --start 9 --end 1 --background --freq 30 --volume 30`. Explicit arguments override alias defaults:
+
+```bash
+vox clock --volume 50    # overrides --volume 30 from the alias
+```
+
+Manage aliases the same way as settings:
+
+```bash
+vox config alias.clock                 # show an alias
+vox config --unset alias.clock         # remove an alias
+```
 
 ### vox install
 
@@ -314,7 +337,7 @@ pyproject.toml        Package configuration
 ~/.horavox/           Runtime data (created automatically)
   voices/             Downloaded Piper voice models (.onnx)
   cache/              Voice catalog cache + PID file
-  config.json         Default settings (lang, voice, mode)
+  config.json         Default settings and aliases
   data.json           Installed service instances registry
   horavox.log         Spoken words + error log
 ```

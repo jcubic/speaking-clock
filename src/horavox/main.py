@@ -13,6 +13,7 @@ COMMANDS = {
     "stop": ("horavox.stop", "Stop running background instances"),
     "list": ("horavox.list", "List running background instances"),
     "voice": ("horavox.voice", "Manage Piper voice models"),
+    "at": ("horavox.at", "Speak the time at specified times"),
     "config": ("horavox.config", "Get or set default configuration"),
     "install": ("horavox.install", "Install a command as an autostart service"),
     "remove": ("horavox.remove", "Remove installed service instances"),
@@ -40,7 +41,10 @@ def main():
         return
     cmd = sys.argv[1]
     if cmd in COMMANDS:
-        sys.argv = [f"vox {cmd}"] + sys.argv[2:]
+        from horavox.config import get_aliases
+        aliases = get_aliases()
+        alias_args = aliases.get(cmd, "").split() if cmd in aliases else []
+        sys.argv = [f"vox {cmd}"] + alias_args + sys.argv[2:]
         mod = importlib.import_module(COMMANDS[cmd][0])
         mod.main()
         return

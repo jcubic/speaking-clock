@@ -69,6 +69,7 @@ vox <command> [options]
 | `vox stop` | Stop running background instances |
 | `vox voice` | Manage Piper voice models |
 | `vox at` | Speak the time at specified times |
+| `vox config` | Get or set default configuration |
 | `vox install` | Install a command as an autostart service |
 | `vox remove` | Remove installed service instances |
 
@@ -154,6 +155,21 @@ Works with `vox install` too:
 ```bash
 vox install "at 9:00,12:00,18:00 --lang en --volume 50"
 ```
+
+### vox config
+
+Set default values for `--lang`, `--voice`, and `--mode` so you don't have to pass them every time:
+
+```bash
+vox config lang=pl                     # default language
+vox config voice=pl_PL-mc_speech-medium # default voice
+vox config mode=classic                # default time style
+vox config                             # list all settings
+vox config lang                        # show a single setting
+vox config --unset voice               # remove a setting
+```
+
+Defaults are stored in `~/.horavox/config.json` and apply to `vox clock`, `vox now`, `vox at`, and `vox voice`. Command-line flags always override config values.
 
 ### vox install
 
@@ -298,6 +314,7 @@ pyproject.toml        Package configuration
 ~/.horavox/           Runtime data (created automatically)
   voices/             Downloaded Piper voice models (.onnx)
   cache/              Voice catalog cache + PID file
+  config.json         Default settings (lang, voice, mode)
   data.json           Installed service instances registry
   horavox.log         Spoken words + error log
 ```

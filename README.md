@@ -5,6 +5,7 @@
 
 [![pip](https://img.shields.io/badge/pip-0.2.0-blue.svg)](https://pypi.org/project/horavox/)
 [![CI](https://github.com/jcubic/horavox/actions/workflows/ci.yml/badge.svg)](https://github.com/jcubic/horavox/actions/workflows/ci.yml)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/horavox?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/horavox)
 [![horavox GitHub repo](https://img.shields.io/badge/github-horavox-orange?logo=github)](https://github.com/jcubic/horavox)
 [![Coverage Status](https://coveralls.io/repos/github/jcubic/horavox/badge.svg?branch=master)](https://coveralls.io/github/jcubic/horavox?branch=master)
 [![LICENSE GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://github.com/jcubic/horavox/blob/master/LICENSE)

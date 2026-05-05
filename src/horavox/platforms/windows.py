@@ -26,7 +26,7 @@ def _vox_path():
 
 def _vbs_content():
     vox = _vox_path().replace("\\", "\\\\")
-    return f'CreateObject("Wscript.Shell").Run """{vox}"" service", 0, False\n'
+    return f'CreateObject("Wscript.Shell").Run """{vox}"" service run", 0, False\n'
 
 
 def _read_pid():
@@ -62,7 +62,7 @@ def register():
 
 def start():
     proc = subprocess.Popen(
-        [_vox_path(), "service"],
+        [_vox_path(), "service", "run"],
         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     _write_pid(proc.pid)

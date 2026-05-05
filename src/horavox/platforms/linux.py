@@ -22,7 +22,7 @@ def _unit_content():
 Description=HoraVox service manager
 
 [Service]
-ExecStart={_vox_path()} service
+ExecStart={_vox_path()} service run
 Restart=on-failure
 RestartSec=5
 

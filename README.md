@@ -23,7 +23,7 @@ A multi-language speaking clock that announces the time using [Piper](https://gi
 - **Configurable interval** -- announce every N minutes with `--freq` (e.g., every 30 min)
 - **Volume control** -- set volume 0--100% with `--volume`
 - **Background mode** -- run as a daemon with `--background`, stop with `--stop`
-- **Autostart service** -- install as a system service with `vox install`, runs on login
+- **Autostart service** -- add as a system service with `vox service add`, runs on login
 - **Hour beeps** -- 2 beeps on the full hour, 1 beep on the half hour
 - **Simulated time** -- debug with `--time HH:MM` to set a fake starting time
 - **Silent by default** -- no terminal output unless `--verbose` is passed
@@ -70,8 +70,7 @@ vox <command> [options]
 | `vox voice` | Manage Piper voice models |
 | `vox at` | Speak the time at specified times |
 | `vox config` | Get or set default configuration |
-| `vox install` | Install a command as an autostart service |
-| `vox remove` | Remove installed service instances |
+| `vox service` | Manage autostart service (install/remove/list/start) |
 
 Run `vox <command> --help` for command-specific options.
 
@@ -150,10 +149,10 @@ vox at 9:00,12:00 --volume 30          # quiet
 
 Times are comma-separated in `HH:MM` format. Duplicates are ignored, order doesn't matter. Supports the same `--lang`, `--voice`, `--mode`, `--volume`, `--background`, and `--debug` flags as `vox clock`.
 
-Works with `vox install` too:
+Works with `vox service add` too:
 
 ```bash
-vox install "at 9:00,12:00,18:00 --lang en --volume 50"
+vox service add "at 9:00,12:00,18:00 --lang en --volume 50"
 ```
 
 ### vox config
@@ -194,13 +193,17 @@ vox config alias.clock                 # show an alias
 vox config --unset alias.clock         # remove an alias
 ```
 
-### vox install
+### vox service
 
-Install a clock command as an autostart service that runs on login:
+Manage autostart service instances that run on login:
 
 ```bash
-vox install "clock --lang pl --voice pl_PL-mc_speech-medium --start 9 --end 1 --freq 30 --volume 30"
-vox install --list                     # list installed instances
+vox service add "clock --lang pl --voice pl_PL-mc_speech-medium --start 9 --end 1 --freq 30 --volume 30"
+vox service list                       # list installed instances
+vox service delete <id>                # delete a specific instance
+vox service delete --all               # delete all instances
+vox service delete                     # interactive selection if multiple
+vox service start                      # start the service manually
 ```
 
 The quoted argument is any valid `vox` subcommand with its flags. The `--background` flag is stripped automatically since the service manager handles that.
@@ -213,19 +216,7 @@ On the first install, a platform-specific service is registered and started:
 | macOS | launchd user agent (`~/Library/LaunchAgents/com.horavox.service.plist`) |
 | Windows | Startup folder script (`%APPDATA%\...\Startup\horavox.vbs`) |
 
-Subsequent installs add instances to the registry and signal the running service to reload.
-
-### vox remove
-
-Remove installed service instances:
-
-```bash
-vox remove <id>                        # remove a specific instance
-vox remove --all                       # remove all instances
-vox remove                             # interactive selection if multiple
-```
-
-When the last instance is removed, the service is automatically unregistered.
+Subsequent installs add instances to the registry and signal the running service to reload. When the last instance is removed, the service is automatically unregistered.
 
 ### Custom commands
 

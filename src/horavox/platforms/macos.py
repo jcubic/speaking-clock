@@ -21,7 +21,7 @@ def _vox_path():
 def _plist_content():
     return {
         "Label": LABEL,
-        "ProgramArguments": [_vox_path(), "service"],
+        "ProgramArguments": [_vox_path(), "service", "run"],
         "RunAtLoad": True,
         "KeepAlive": {"SuccessfulExit": False},
         "StandardOutPath": os.path.expanduser("~/.horavox/launchd-stdout.log"),

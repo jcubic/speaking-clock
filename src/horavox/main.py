@@ -15,9 +15,7 @@ COMMANDS = {
     "voice": ("horavox.voice", "Manage Piper voice models"),
     "at": ("horavox.at", "Speak the time at specified times"),
     "config": ("horavox.config", "Get or set default configuration"),
-    "install": ("horavox.install", "Install a command as an autostart service"),
-    "remove": ("horavox.remove", "Remove installed service instances"),
-    "service": ("horavox.service", "Run the service manager (internal)"),
+    "service": ("horavox.service", "Manage autostart service instances"),
 }
 
 

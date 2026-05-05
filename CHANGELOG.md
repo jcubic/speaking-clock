@@ -1,7 +1,7 @@
 ## 0.3.0
 ### Feature
 * add `vox list` sub-command
-* add system integration with `vox install/remove`
+* add `vox service`
 * add `vox at` command
 * add `vox config` command
 ### Bugfix

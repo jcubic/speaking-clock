@@ -4,6 +4,7 @@
 * add `vox service`
 * add `vox at` command
 * add `vox config` command
+* add shell completion
 ### Bugfix
 * fix cleaning old session files
 

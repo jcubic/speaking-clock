@@ -66,11 +66,13 @@ vox <command> [options]
 |---------|-------------|
 | `vox clock` | Run the speaking clock |
 | `vox now` | Speak the current time once |
+| `vox list` | List running background instances |
 | `vox stop` | Stop running background instances |
 | `vox voice` | Manage Piper voice models |
 | `vox at` | Speak the time at specified times (one-shot or recurring) |
 | `vox config` | Get or set default configuration |
-| `vox service` | Manage autostart service (install/remove/list/start) |
+| `vox service` | Manage autostart service (add/delete/list/start) |
+| `vox completion` | Generate shell completion scripts |
 
 Run `vox <command> --help` for command-specific options.
 
@@ -105,15 +107,15 @@ vox now --mode modern          # digital style
 vox now --volume 30            # quiet
 ```
 
-### vox stop
+### vox stop / vox list
 
-Stop running background instances:
+Stop and list running background instances:
 
 ```bash
+vox list                       # print PIDs of running instances
+vox list --verbose             # include command lines
 vox stop                       # interactive selection if multiple instances
 vox stop --pid 12345           # stop a specific instance
-vox stop --list                # print PIDs (for scripting)
-vox stop --list --verbose      # include command lines
 ```
 
 When multiple instances are running, `vox stop` shows an interactive menu with arrow-key selection.
@@ -227,6 +229,23 @@ On the first install, a platform-specific service is registered and started:
 
 Subsequent installs add instances to the registry and signal the running service to reload. When the last instance is removed, the service is automatically unregistered.
 
+### Shell completion
+
+HoraVox supports tab completion for bash, zsh, and fish via [argcomplete](https://github.com/kislyuk/argcomplete). Generate and activate the completion script for your shell:
+
+```bash
+# Bash — add to ~/.bashrc
+eval "$(vox completion --bash)"
+
+# Zsh — add to ~/.zshrc
+eval "$(vox completion --zsh)"
+
+# Fish — add to ~/.config/fish/config.fish
+vox completion --fish | source
+```
+
+Once activated, pressing Tab will complete command names, option flags, and values (e.g., `--mode classic|modern`).
+
 ### Custom commands
 
 Like git, any executable named `vox-<name>` in your `$PATH` can be invoked as `vox <name>`. This lets you extend HoraVox with your own commands or scripts:
@@ -325,7 +344,22 @@ Create a JSON file in `data/lang/<code>.json` (e.g., `de.json` for German). The 
 ```
 src/horavox/
   __init__.py         Package init
-  cli.py              Main script (installed as `vox` via pip)
+  main.py             CLI dispatcher (installed as `vox` via pip)
+  core.py             Shared library — paths, logging, language, TTS, voice, sessions
+  clock.py            vox clock — speaking clock loop + daemon
+  now.py              vox now — speak once
+  at.py               vox at — scheduled announcements (one-shot / recurring)
+  stop.py             vox stop — stop daemons
+  list.py             vox list — list running daemons
+  voice.py            vox voice — interactive voice browser
+  config.py           vox config — get/set defaults and aliases
+  service.py          vox service — autostart service management
+  registry.py         CRUD for service instance registry
+  completion.py       vox completion — shell completion scripts
+  platforms/
+    linux.py          systemd user service backend
+    macos.py          launchd user agent backend
+    windows.py        Windows startup folder backend
   data/
     lang/
       en.json         English time data

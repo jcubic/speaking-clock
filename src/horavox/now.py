@@ -17,12 +17,7 @@ from horavox.core import (
 )
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Speak the current time once and exit",
-        prog="vox now",
-    )
-
+def setup_parser(parser):
     parser.add_argument(
         "--lang",
         type=str,
@@ -74,6 +69,13 @@ def parse_args():
         help="Alias for --nosound --verbose",
     )
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Speak the current time once and exit",
+        prog="vox now",
+    )
+    setup_parser(parser)
     return parser.parse_args()
 
 

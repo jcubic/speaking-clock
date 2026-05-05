@@ -16,7 +16,30 @@ COMMANDS = {
     "at": ("horavox.at", "Speak the time at specified times"),
     "config": ("horavox.config", "Get or set default configuration"),
     "service": ("horavox.service", "Manage autostart service instances"),
+    "completion": ("horavox.completion", "Generate shell completion scripts"),
 }
+
+
+def build_parser():
+    """Build the full argparse parser tree (used by argcomplete for completion)."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="vox",
+        description="HoraVox — the voice of the hour",
+    )
+    parser.add_argument(
+        "--version",
+        "-V",
+        action="version",
+        version=f"vox {__version__}",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+    for name, (module_path, desc) in COMMANDS.items():
+        mod = importlib.import_module(module_path)
+        sub = subparsers.add_parser(name, help=desc)
+        mod.setup_parser(sub)
+    return parser
 
 
 def print_help():
@@ -24,13 +47,21 @@ def print_help():
     print("Usage: vox <command> [options]\n")
     print("Commands:")
     for name, (_, desc) in COMMANDS.items():
-        print(f"  {name:<10} {desc}")
+        print(f"  {name:<12} {desc}")
     print()
     print("Run 'vox <command> --help' for command-specific options.")
     print("Run 'vox --version' to show the version.")
 
 
 def main():
+    # Shell completion: build full parser tree only when completing
+    if "_ARGCOMPLETE" in os.environ:
+        parser = build_parser()
+        import argcomplete
+
+        argcomplete.autocomplete(parser)
+        return
+
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print_help()
         return

@@ -22,12 +22,7 @@ HIDE_CURSOR = "\033[?25l"
 SHOW_CURSOR = "\033[?25h"
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Manage Piper voice models",
-        prog="vox voice",
-    )
-
+def setup_parser(parser):
     parser.add_argument(
         "--lang",
         type=str,
@@ -42,8 +37,14 @@ def parse_args():
         help="List available voices (non-interactive)",
     )
 
-    args = parser.parse_args()
-    return args
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Manage Piper voice models",
+        prog="vox voice",
+    )
+    setup_parser(parser)
+    return parser.parse_args()
 
 
 def get_lang_name(lang):

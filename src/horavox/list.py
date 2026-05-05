@@ -8,18 +8,20 @@ from horavox.core import (
 )
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="List running background instances",
-        prog="vox list",
-    )
-
+def setup_parser(parser):
     parser.add_argument(
         "--verbose",
         action="store_true",
         help="Include command line in output",
     )
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="List running background instances",
+        prog="vox list",
+    )
+    setup_parser(parser)
     return parser.parse_args()
 
 

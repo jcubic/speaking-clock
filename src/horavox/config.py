@@ -148,11 +148,7 @@ def _validate_setting(keys, value):
 # ==================== CLI ====================
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Get or set default configuration and aliases",
-        prog="vox config",
-    )
+def setup_parser(parser):
     parser.add_argument(
         "args",
         nargs="*",
@@ -164,6 +160,14 @@ def parse_args():
         metavar="KEY",
         help="Remove a config key (e.g. lang, alias.clock, a.b.c)",
     )
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Get or set default configuration and aliases",
+        prog="vox config",
+    )
+    setup_parser(parser)
     return parser.parse_args()
 
 

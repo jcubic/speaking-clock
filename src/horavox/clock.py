@@ -34,12 +34,7 @@ from horavox.core import (
 )
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Run the speaking clock",
-        prog="vox clock",
-    )
-
+def setup_parser(parser):
     parser.add_argument(
         "--lang",
         type=str,
@@ -118,6 +113,13 @@ def parse_args():
         help="Alias for --nosound --verbose",
     )
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run the speaking clock",
+        prog="vox clock",
+    )
+    setup_parser(parser)
     return parser.parse_args()
 
 

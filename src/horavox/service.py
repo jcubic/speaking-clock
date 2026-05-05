@@ -25,6 +25,20 @@ SUBCOMMANDS = {
 }
 
 
+def setup_parser(parser):
+    subs = parser.add_subparsers(dest="subcommand")
+    add_p = subs.add_parser("add", help=SUBCOMMANDS["add"])
+    add_p.add_argument("command", help='Command to install (e.g. "clock --lang pl --freq 30")')
+    del_p = subs.add_parser("delete", help=SUBCOMMANDS["delete"])
+    del_p.add_argument("id", nargs="?", help="Instance ID to remove")
+    del_p.add_argument(
+        "--all", action="store_true", dest="remove_all", help="Remove all installed instances"
+    )
+    subs.add_parser("list", help=SUBCOMMANDS["list"])
+    subs.add_parser("start", help=SUBCOMMANDS["start"])
+    subs.add_parser("run", help=argparse.SUPPRESS)
+
+
 def main():
     try:
         _main()

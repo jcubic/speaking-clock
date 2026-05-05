@@ -10,12 +10,7 @@ from horavox.core import (
 )
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Stop running background instances",
-        prog="vox stop",
-    )
-
+def setup_parser(parser):
     parser.add_argument(
         "--pid",
         type=int,
@@ -24,6 +19,13 @@ def parse_args():
         help="Stop a specific instance by PID",
     )
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Stop running background instances",
+        prog="vox stop",
+    )
+    setup_parser(parser)
     return parser.parse_args()
 
 

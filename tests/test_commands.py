@@ -1579,6 +1579,7 @@ class TestAtCommand:
 
     def test_parse_date_valid(self):
         import datetime
+
         from horavox.at import parse_date
 
         assert parse_date("2026-05-10") == datetime.date(2026, 5, 10)
@@ -1611,6 +1612,7 @@ class TestAtCommand:
 
     def test_next_repeat_target(self):
         import datetime
+
         from horavox.at import _next_repeat_target
 
         monday_noon = datetime.datetime(2026, 5, 4, 12, 0, 0)
@@ -1621,6 +1623,7 @@ class TestAtCommand:
 
     def test_next_repeat_target_skips_day(self):
         import datetime
+
         from horavox.at import _next_repeat_target
 
         tuesday_noon = datetime.datetime(2026, 5, 5, 12, 0, 0)
@@ -1633,10 +1636,10 @@ class TestAtCommand:
     def test_repeat_wrong_day_no_speak(self, capsys):
         """--exit on a day not in repeat_days should not speak."""
         import datetime
+
         from horavox import at
 
         now = datetime.datetime(2026, 5, 5, 12, 0, 0)  # Tuesday
-        offset = now - datetime.datetime.now()
         h, m = now.hour, now.minute
 
         with mock.patch.object(
@@ -1996,3 +1999,105 @@ class TestVoiceCommand:
                         with mock.patch.object(voice, "uninstall_voice") as mock_rm:
                             voice.cmd_interactive("en")
                             mock_rm.assert_not_called()
+
+
+# ==================== completion.py ====================
+
+
+class TestCompletionCommand:
+    def test_bash_output(self, capsys):
+        from horavox import completion
+
+        with mock.patch.object(sys, "argv", ["vox completion", "--bash"]):
+            completion.main()
+        out = capsys.readouterr().out
+        assert "vox" in out
+        assert len(out) > 50
+
+    def test_zsh_output(self, capsys):
+        from horavox import completion
+
+        with mock.patch.object(sys, "argv", ["vox completion", "--zsh"]):
+            completion.main()
+        out = capsys.readouterr().out
+        assert "vox" in out
+
+    def test_fish_output(self, capsys):
+        from horavox import completion
+
+        with mock.patch.object(sys, "argv", ["vox completion", "--fish"]):
+            completion.main()
+        out = capsys.readouterr().out
+        assert "vox" in out
+        assert "fish" in out.lower() or "__fish" in out
+
+    def test_no_shell_flag_errors(self):
+        from horavox import completion
+
+        with mock.patch.object(sys, "argv", ["vox completion"]):
+            with pytest.raises(SystemExit):
+                completion.main()
+
+    def test_dispatches_from_main(self):
+        from horavox.main import main
+
+        with mock.patch.object(sys, "argv", ["vox", "completion"]):
+            with mock.patch("horavox.completion.main") as m:
+                main()
+                m.assert_called_once()
+
+    def test_help_shows_completion(self, capsys):
+        from horavox.main import main
+
+        with mock.patch.object(sys, "argv", ["vox"]):
+            main()
+        out = capsys.readouterr().out
+        assert "completion" in out
+
+
+# ==================== build_parser ====================
+
+
+class TestBuildParser:
+    def test_build_parser_has_subcommands(self):
+        from horavox.main import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["clock", "--debug"])
+        assert args.command == "clock"
+        assert args.debug is True
+
+    def test_build_parser_version(self):
+        from horavox.main import build_parser
+
+        parser = build_parser()
+        with pytest.raises(SystemExit) as exc:
+            parser.parse_args(["--version"])
+        assert exc.value.code == 0
+
+    def test_build_parser_service_subcommands(self):
+        from horavox.main import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["service", "list"])
+        assert args.command == "service"
+        assert args.subcommand == "list"
+
+    def test_build_parser_completion(self):
+        from horavox.main import build_parser
+
+        parser = build_parser()
+        args = parser.parse_args(["completion", "--bash"])
+        assert args.command == "completion"
+        assert args.bash is True
+
+    def test_argcomplete_env_triggers_build(self):
+        from horavox.main import main
+
+        with mock.patch.dict(os.environ, {"_ARGCOMPLETE": "1"}):
+            with mock.patch("horavox.main.build_parser") as mock_build:
+                mock_parser = mock.MagicMock()
+                mock_build.return_value = mock_parser
+                with mock.patch("argcomplete.autocomplete"):
+                    main()
+                mock_build.assert_called_once()

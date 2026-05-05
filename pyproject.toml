@@ -25,6 +25,7 @@ dependencies = [
     "piper-tts",
     "daemonize",
     "inquirer",
+    "argcomplete",
 ]
 
 [project.urls]

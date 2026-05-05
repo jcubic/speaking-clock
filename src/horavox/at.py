@@ -93,12 +93,7 @@ def parse_date(value):
         sys.exit(1)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Speak the time at specified times",
-        prog="vox at",
-    )
-
+def setup_parser(parser):
     parser.add_argument(
         "times",
         type=str,
@@ -174,6 +169,13 @@ def parse_args():
         help="Alias for --nosound --verbose",
     )
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Speak the time at specified times",
+        prog="vox at",
+    )
+    setup_parser(parser)
     return parser.parse_args()
 
 
@@ -265,9 +267,9 @@ def run_at_repeat(args, lang, lang_data, time_offset, schedule, repeat_days):
         else:
             times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
             days_str = _format_days(repeat_days)
-            log(
-                f"  Time: {now.strftime('%H:%M:%S')} ({_weekday_name(weekday)}) - not at a scheduled time ({times_str} on {days_str})."
-            )
+            week = _weekday_name(weekday)
+            time = now.strftime("%H:%M:%S")
+            log(f"  Time: {time} ({week}) - not at a scheduled time ({times_str} on {days_str}).")
         return
 
     times_str = ", ".join(f"{h}:{m:02d}" for h, m in schedule)
